@@ -1,0 +1,1134 @@
+/* mobile-assessment.css — Mobile-first responsive overrides scoped to
+   the six Assessment-flow pages so Mobiliser (MGJ) and Sangini (AK)
+   field staff can fill assessments and review baseline reports from a
+   phone browser.
+
+   Target pages:
+     #page-mgjAssessmentList   (MGJ Assessment List)
+     #page-addMgjAssessment    (MGJ Assessment — Add / Form)
+     #page-mgjBaselineReport   (MGJ Baseline Report)
+     #page-akAssessmentList    (AK  Assessment List)
+     #page-addAkAssessment     (AK  Assessment — Add / Form)
+     #page-akBaselineReport    (AK  Baseline Report)
+
+   Shared chrome (app-header, app-nav, modals) also adjusts at
+   <=768px because that chrome wraps every page; if a Mobiliser
+   opens the Assessment List the surrounding shell must be tappable
+   too. Desktop layouts above 768px are NOT touched.
+
+   2026-06-05.
+*/
+
+/* ============================================================
+   DESKTOP / TABLET BASE — wraps stay transparent.
+   _brMakeChart() in app.js wraps bar/line chart canvases in two
+   divs (.chart-canvas-outer > .chart-canvas-inner > canvas) so the
+   mobile media query below can turn them into a fixed-width inside
+   a scroll container. On desktop both wraps must NOT affect layout
+   — display:contents makes them disappear from the box tree, so
+   Chart.js sees chart-card as the canvas's effective parent and the
+   chart renders at full desktop dimensions exactly as before.
+   ============================================================ */
+.chart-canvas-outer,
+.chart-canvas-inner {
+  display: contents;
+}
+
+/* ============================================================
+   TIER 1 — TABLET / SMALL LAPTOP (<= 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ----- HTML / body — kill horizontal overflow ----- */
+  html, body { overflow-x: hidden; }
+
+  /* ----- App header (logo + title + user avatar) ----- */
+  .app-header { padding: 0 12px; height: 56px; }
+  .header-left { gap: 8px; min-width: 0; }
+  .header-logo { height: 32px; }
+  .header-title h1 {
+    font-size: 0.92rem;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50vw;
+  }
+  .header-user { padding: 6px 8px; gap: 6px; }
+  .user-info { display: none; }     /* keep just the avatar — saves ~140px */
+  .user-avatar { font-size: 24px; }
+
+  /* ----- Top nav (purple bar) — horizontally scrollable ----- */
+  .app-nav { padding: 0 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .app-nav::-webkit-scrollbar { height: 3px; }
+  .app-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.4); border-radius: 2px; }
+  .nav-menu { flex-wrap: nowrap; min-width: max-content; }
+  .nav-item { padding: 12px 14px; font-size: 13px; white-space: nowrap; }
+
+  /* 2026-06-06 v11: Mobile submenu rendered as a fixed dropdown
+     SHEET docked at the top of the viewport, just under the
+     app-header + app-nav bars. The previous `position: fixed;
+     top: auto` left vertical positioning to the browser based
+     on the parent nav item's location, which slid sideways with
+     the horizontally scrollable nav-menu and dragged the sheet
+     off-screen or onto page content. Now we pin the sheet to
+     `top: 108px` (= app-header 56px + app-nav ~50px) so it
+     always lands flush under the nav bar regardless of how the
+     user scrolled the nav-menu horizontally. Long item labels
+     wrap onto multiple lines, the sheet has a max-height + its
+     own vertical scroll, and it never overflows the viewport. */
+  .nav-menu .has-submenu { position: static; }
+  .submenu {
+    position: fixed !important;
+    top: 108px !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 120px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    background: #ffffff !important;
+    border: 1px solid #e5e0e3 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25) !important;
+    padding: 4px 0 !important;
+    z-index: 9999 !important;
+    box-sizing: border-box;
+  }
+  .submenu li {
+    padding: 14px 18px;
+    font-size: 14px;
+    color: #333;
+    white-space: normal !important;
+    word-break: break-word;
+    line-height: 1.4;
+    border-bottom: 1px solid #f4eef3;
+  }
+  .submenu li:last-child {
+    border-bottom: none;
+  }
+  .submenu li:hover,
+  .submenu li:active {
+    background: #f8eff6;
+    color: #732269;
+  }
+
+  /* ----- Main content padding ----- */
+  .app-main { padding: 14px 12px; }
+
+  /* ----- Page header (breadcrumb + Back button) ----- */
+  #page-mgjAssessmentList .page-header,
+  #page-addMgjAssessment .page-header,
+  #page-mgjBaselineReport .page-header,
+  #page-akAssessmentList .page-header,
+  #page-addAkAssessment .page-header,
+  #page-akBaselineReport .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  #page-mgjAssessmentList .page-header .btn,
+  #page-addMgjAssessment .page-header .btn,
+  #page-mgjBaselineReport .page-header .btn,
+  #page-akAssessmentList .page-header .btn,
+  #page-addAkAssessment .page-header .btn,
+  #page-akBaselineReport .page-header .btn {
+    align-self: flex-start;
+    min-height: 40px;
+  }
+  #page-mgjAssessmentList .breadcrumb,
+  #page-addMgjAssessment .breadcrumb,
+  #page-mgjBaselineReport .breadcrumb,
+  #page-akAssessmentList .breadcrumb,
+  #page-addAkAssessment .breadcrumb,
+  #page-akBaselineReport .breadcrumb {
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  /* ============================================================
+     FILTER PANEL — full-width vertical stack on mobile
+     ============================================================ */
+  #page-mgjAssessmentList .filter-panel,
+  #page-mgjBaselineReport .filter-panel,
+  #page-akAssessmentList  .filter-panel,
+  #page-akBaselineReport  .filter-panel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 12px;
+  }
+  #page-mgjAssessmentList .filter-group,
+  #page-mgjBaselineReport .filter-group,
+  #page-akAssessmentList  .filter-group,
+  #page-akBaselineReport  .filter-group {
+    width: 100%;
+  }
+  /* Defeat the desktop fixed-180px width rule on MGJ list/baseline */
+  #page-mgjAssessmentList .filter-group select,
+  #page-mgjAssessmentList .filter-group input:not([type="date"]),
+  #page-mgjBaselineReport .filter-group select,
+  #page-mgjBaselineReport .filter-group input:not([type="date"]),
+  #page-akAssessmentList  .filter-group select,
+  #page-akAssessmentList  .filter-group input:not([type="date"]),
+  #page-akBaselineReport  .filter-group select,
+  #page-akBaselineReport  .filter-group input:not([type="date"]) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 42px;
+    font-size: 14px;     /* >=16px would be ideal to avoid iOS focus zoom but
+                            visually too large; 14px stays compact */
+  }
+  /* Date-range inputs keep their own row */
+  #page-mgjAssessmentList .filter-group.filter-duration .duration-inputs,
+  #page-akAssessmentList  .filter-group.filter-duration .duration-inputs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  #page-mgjAssessmentList .filter-group.filter-duration .duration-inputs input,
+  #page-akAssessmentList  .filter-group.filter-duration .duration-inputs input {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+  }
+
+  /* Action buttons (Search / Reset / Export) — full-width, 3-button row */
+  #page-mgjAssessmentList .filter-panel .btn,
+  #page-mgjBaselineReport .filter-panel .btn,
+  #page-akAssessmentList  .filter-panel .btn,
+  #page-akBaselineReport  .filter-panel .btn {
+    height: 44px;
+    min-width: 0;
+    padding: 0 10px;
+    flex: 1 1 0;
+    font-size: 13px;
+  }
+  #page-mgjAssessmentList .filter-actions,
+  #page-mgjBaselineReport .filter-actions,
+  #page-akAssessmentList  .filter-actions,
+  #page-akBaselineReport  .filter-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* ============================================================
+     ASSESSMENT FORM (Add page) — stack to single column
+     ============================================================ */
+  #page-addMgjAssessment .form-grid,
+  #page-addAkAssessment  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  #page-addMgjAssessment .form-card,
+  #page-addAkAssessment  .form-card {
+    padding: 16px !important;     /* the page uses inline padding via style="" */
+  }
+  /* Touch-sized inputs */
+  #page-addMgjAssessment input[type="text"],
+  #page-addMgjAssessment input[type="number"],
+  #page-addMgjAssessment input[type="email"],
+  #page-addMgjAssessment input[type="date"],
+  #page-addMgjAssessment input[type="tel"],
+  #page-addMgjAssessment select,
+  #page-addMgjAssessment textarea,
+  #page-addAkAssessment  input[type="text"],
+  #page-addAkAssessment  input[type="number"],
+  #page-addAkAssessment  input[type="email"],
+  #page-addAkAssessment  input[type="date"],
+  #page-addAkAssessment  input[type="tel"],
+  #page-addAkAssessment  select,
+  #page-addAkAssessment  textarea {
+    font-size: 16px;              /* prevents iOS auto-zoom on focus */
+    min-height: 44px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+  }
+  #page-addMgjAssessment textarea,
+  #page-addAkAssessment  textarea { min-height: 90px; }
+
+  /* Radio + checkbox tap targets */
+  #page-addMgjAssessment input[type="radio"],
+  #page-addMgjAssessment input[type="checkbox"],
+  #page-addAkAssessment  input[type="radio"],
+  #page-addAkAssessment  input[type="checkbox"] {
+    width: 20px; height: 20px;
+    transform: translateY(2px);
+    margin-right: 8px;
+  }
+
+  /* AF section tab strip (#mgjAfTabNav / #akAfTabNav) inherits
+     overflow-x:auto from its inline style. Tighten the chip padding so
+     more tabs fit on screen. */
+  #mgjAfTabNav, #akAfTabNav {
+    padding: 4px 4px 0 4px;
+    gap: 4px;
+  }
+  #mgjAfTabNav .tab-btn, #akAfTabNav .tab-btn,
+  #mgjAfTabNav button,   #akAfTabNav button {
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab-content { padding: 16px 12px !important; }
+
+  /* 2026-06-06 v13: Form action bar — flex layout with strict
+     min-width:0 so buttons NEVER overflow their parent. Each
+     button takes 1 share of the row; the helper text (if any)
+     goes on its OWN row above the buttons. Long labels like
+     "Save Draft" wrap inside the button instead of pushing the
+     row sideways. */
+  #page-addMgjAssessment .form-actions,
+  #page-addAkAssessment  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding-top: 14px;
+    margin-top: 14px;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  /* Helper text (the "New draft — click Save Draft to persist
+     your changes" span) takes the whole row above the buttons.
+     `flex-basis:100%` claims the entire width so the buttons
+     start fresh on the next flex line. Never breaks vertically. */
+  #page-addMgjAssessment .form-actions > *:not(.btn),
+  #page-addAkAssessment  .form-actions > *:not(.btn) {
+    flex: 0 0 100%;
+    max-width: 100%;
+    font-size: 11.5px;
+    color: var(--text-light);
+    margin: 0 0 4px 0;
+    line-height: 1.35;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+  }
+  /* Buttons: flex:1 with min-width:0 guarantees they share the row
+     equally without overflowing. Equal heights via min-height +
+     align-items:stretch on parent. Labels wrap inside (white-space:
+     normal) so long captions like "Proceed to Assessment Form"
+     fit two lines instead of pushing button off-screen. */
+  #page-addMgjAssessment .form-actions .btn,
+  #page-addAkAssessment  .form-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 46px;
+    padding: 10px 8px;
+    font-size: 12.5px;
+    line-height: 1.25;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  /* On narrow phones (<=400px) buttons stack vertically — each takes
+     a full row. Easier to tap and never clipped. */
+  @media (max-width: 400px) {
+    #page-addMgjAssessment .form-actions .btn,
+    #page-addAkAssessment  .form-actions .btn {
+      flex: 0 0 100%;
+    }
+  }
+
+  /* ============================================================
+     2026-06-06 v13: Assessment form sub-section tab navigation
+     (General Info / Family / Marriage & Aspirations / etc.)
+     ============================================================
+     The .tab-nav already has inline overflow-x:auto + nowrap, but
+     a 1-3px height mismatch between tab buttons was making a
+     vertical scrollbar appear inside the tab strip on some mobile
+     browsers (visible 1-2px gray bar on the right). Lock the
+     height + suppress overflow-y to keep the strip clean. */
+  #page-addMgjAssessment .tab-nav,
+  #page-addAkAssessment  .tab-nav {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    scrollbar-width: thin;
+    scrollbar-color: #732269 #f4eef3;
+  }
+  #page-addMgjAssessment .tab-nav::-webkit-scrollbar,
+  #page-addAkAssessment  .tab-nav::-webkit-scrollbar {
+    height: 4px;
+    width: 0;          /* no vertical bar */
+    -webkit-appearance: none;
+  }
+  #page-addMgjAssessment .tab-nav::-webkit-scrollbar-thumb,
+  #page-addAkAssessment  .tab-nav::-webkit-scrollbar-thumb {
+    background: #732269;
+    border-radius: 2px;
+  }
+  #page-addMgjAssessment .tab-nav .tab-btn,
+  #page-addAkAssessment  .tab-nav .tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* 2026-06-06 v13: Member-picker table inside Add Assessment
+     (Select / Leader Name / Enrollment No. / Centre / Batch /
+     Status). Previously columns auto-sized which let "Enrollment
+     No." and "Centre" content overlap visually. Now each column
+     has an explicit min-width so the table fits its content
+     horizontally and overflow-x scrolls the wrapper. */
+  #page-addMgjAssessment .data-table th,
+  #page-addMgjAssessment .data-table td,
+  #page-addAkAssessment  .data-table th,
+  #page-addAkAssessment  .data-table td {
+    padding: 9px 10px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+  /* Column widths: Select 44 / Leader Name 150 / Enrollment 120 /
+     Centre 130 / Batch 100 / Status 90. Total ~ 634px which the
+     .data-table-scroll wrapper scrolls horizontally inside the
+     viewport. */
+  #page-addMgjAssessment .data-table th:nth-child(1),
+  #page-addMgjAssessment .data-table td:nth-child(1),
+  #page-addAkAssessment  .data-table th:nth-child(1),
+  #page-addAkAssessment  .data-table td:nth-child(1) {
+    width: 44px; min-width: 44px; max-width: 44px;
+    text-align: center;
+  }
+  #page-addMgjAssessment .data-table th:nth-child(2),
+  #page-addMgjAssessment .data-table td:nth-child(2),
+  #page-addAkAssessment  .data-table th:nth-child(2),
+  #page-addAkAssessment  .data-table td:nth-child(2) {
+    width: 150px; min-width: 150px;
+  }
+  #page-addMgjAssessment .data-table th:nth-child(3),
+  #page-addMgjAssessment .data-table td:nth-child(3),
+  #page-addAkAssessment  .data-table th:nth-child(3),
+  #page-addAkAssessment  .data-table td:nth-child(3) {
+    width: 120px; min-width: 120px;
+  }
+  #page-addMgjAssessment .data-table th:nth-child(4),
+  #page-addMgjAssessment .data-table td:nth-child(4),
+  #page-addAkAssessment  .data-table th:nth-child(4),
+  #page-addAkAssessment  .data-table td:nth-child(4) {
+    width: 130px; min-width: 130px;
+  }
+  #page-addMgjAssessment .data-table th:nth-child(5),
+  #page-addMgjAssessment .data-table td:nth-child(5),
+  #page-addAkAssessment  .data-table th:nth-child(5),
+  #page-addAkAssessment  .data-table td:nth-child(5) {
+    width: 100px; min-width: 100px;
+  }
+  #page-addMgjAssessment .data-table th:nth-child(6),
+  #page-addMgjAssessment .data-table td:nth-child(6),
+  #page-addAkAssessment  .data-table th:nth-child(6),
+  #page-addAkAssessment  .data-table td:nth-child(6) {
+    width: 90px; min-width: 90px;
+    text-align: center;
+  }
+  /* Override the assessment-list min-width:700px rule for the
+     Add Assessment table so it gets its own larger min-width
+     matching the column-width sum above. */
+  #page-addMgjAssessment .data-table,
+  #page-addAkAssessment  .data-table {
+    min-width: 660px !important;
+  }
+
+  /* Info banners (the purple "Select an Active MGJ member..." strip) */
+  #page-addMgjAssessment .info-banner,
+  #page-addAkAssessment  .info-banner {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* ============================================================
+     ASSESSMENT LIST — already overflow-x:auto on the table.
+     Tighten cell padding so more columns fit at a glance.
+     ============================================================ */
+  #page-mgjAssessmentList .data-table th,
+  #page-mgjAssessmentList .data-table td,
+  #page-akAssessmentList  .data-table th,
+  #page-akAssessmentList  .data-table td {
+    padding: 9px 10px;
+    font-size: 12.5px;
+  }
+  /* Visual hint that the table scrolls horizontally — inset shadow on
+     the right edge when content extends beyond the viewport. */
+  #page-mgjAssessmentList .table-container,
+  #page-akAssessmentList  .table-container {
+    box-shadow: var(--shadow), inset -8px 0 8px -8px rgba(0,0,0,0.18);
+  }
+  /* 2026-06-06 (v3): Action-icon column — every row gets a FIXED-
+     WIDTH (140px) actions cell whose icons sit on a flex row that
+     ALWAYS occupies the same horizontal slot. Previously some rows
+     had 2 icons (Edit + Trash), others had 3 (Plus + Edit + Trash),
+     so the Actions header and the icons drifted across rows during
+     horizontal scroll. The fixed-width slot + right-alignment makes
+     all icons line up vertically under the Actions header. */
+  #page-mgjAssessmentList .data-table th:last-child,
+  #page-akAssessmentList  .data-table th:last-child,
+  #page-mgjAssessmentList .data-table td:last-child,
+  #page-akAssessmentList  .data-table td:last-child {
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    box-sizing: border-box;
+    text-align: right;
+    vertical-align: middle;
+    white-space: nowrap;
+    padding-right: 10px;
+  }
+  #page-mgjAssessmentList .data-table td:last-child .btn-icon,
+  #page-akAssessmentList  .data-table td:last-child .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin-left: 4px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  /* 2026-06-06 (v3): Date columns — give Baseline / Midline / Endline
+     a consistent min-width so the header text "Baseline Date" never
+     wraps onto two lines in some rows while staying single in others.
+     Targets the four trailing data columns by nth-last-child. */
+  #page-mgjAssessmentList .data-table th:nth-last-child(2),
+  #page-mgjAssessmentList .data-table td:nth-last-child(2),
+  #page-mgjAssessmentList .data-table th:nth-last-child(3),
+  #page-mgjAssessmentList .data-table td:nth-last-child(3),
+  #page-mgjAssessmentList .data-table th:nth-last-child(4),
+  #page-mgjAssessmentList .data-table td:nth-last-child(4),
+  #page-akAssessmentList  .data-table th:nth-last-child(2),
+  #page-akAssessmentList  .data-table td:nth-last-child(2),
+  #page-akAssessmentList  .data-table th:nth-last-child(3),
+  #page-akAssessmentList  .data-table td:nth-last-child(3),
+  #page-akAssessmentList  .data-table th:nth-last-child(4),
+  #page-akAssessmentList  .data-table td:nth-last-child(4) {
+    min-width: 108px;
+    text-align: center;
+  }
+
+  /* 2026-06-06 (v2): Table footer was stacking column-style which
+     wasted vertical space and looked broken. Now lays out as a single
+     compact row — "Items per page: [5]" on the left, pagination on
+     the right. Items-per-page dropdown is shrunk + tightened so it
+     fits next to the page buttons without wrapping. */
+  #page-mgjAssessmentList .table-footer,
+  #page-akAssessmentList  .table-footer,
+  #page-assessmentList    .table-footer {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding: 10px 8px;
+  }
+  #page-mgjAssessmentList .items-per-page,
+  #page-akAssessmentList  .items-per-page,
+  #page-assessmentList    .items-per-page {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-light);
+    flex: 0 0 auto;
+  }
+  #page-mgjAssessmentList .items-per-page select,
+  #page-akAssessmentList  .items-per-page select,
+  #page-assessmentList    .items-per-page select {
+    width: 56px !important;
+    min-width: 56px !important;
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+  #page-mgjAssessmentList .pagination,
+  #page-akAssessmentList  .pagination,
+  #page-assessmentList    .pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1 1 auto;
+    font-size: 12px;
+  }
+  #page-mgjAssessmentList .pagination button,
+  #page-akAssessmentList  .pagination button,
+  #page-assessmentList    .pagination button {
+    min-width: 28px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  /* ============================================================
+     2026-06-06 — Horizontal-scroll table fix.
+     The Assessment List + Add-Assessment member-picker tables are bare
+     <table> elements (no .table-container wrapper) so the existing
+     overflow rule above never applied — long rows like "Jaipur,
+     Rajasthan" were getting clipped at the viewport edge with no
+     way to see the rest. Make the tables themselves act as scroll
+     viewports + force cells nowrap so the user can swipe right.
+     ============================================================ */
+  /* 2026-06-06 v5: Keep the table as a single display:table element
+     with table-layout:fixed + an explicit min-width. The previous
+     version put thead and tbody into independent display:table
+     contexts which sized columns DIFFERENTLY — so Action icons
+     appeared under "Endline Date" instead of "Actions". The
+     horizontal scroll is now handled by a .data-table-scroll wrapper
+     div (added by _wrapAssessmentTablesForMobile JS) so the table
+     stays a proper table-layout context and columns align. */
+  #page-mgjAssessmentList .data-table,
+  #page-akAssessmentList  .data-table,
+  #page-assessmentList    .data-table,
+  #page-addMgjAssessment  .data-table,
+  #page-addAkAssessment   .data-table,
+  #page-addAssessment     .data-table {
+    display: table;
+    width: 100%;
+    min-width: 700px;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+  /* Wrapper div (added at runtime) carries the horizontal scroll so
+     the table itself can stay a clean table-layout:fixed element. */
+  #page-mgjAssessmentList .data-table-scroll,
+  #page-akAssessmentList  .data-table-scroll,
+  #page-assessmentList    .data-table-scroll,
+  #page-addMgjAssessment  .data-table-scroll,
+  #page-addAkAssessment   .data-table-scroll,
+  #page-addAssessment     .data-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #732269 #f4eef3;
+    margin-bottom: 6px;
+  }
+  /* 2026-06-06 v13: Assessment List table — explicit widths for
+     all 8 columns so the table-layout:fixed grid aligns headers
+     with cells perfectly. The .data-table-scroll wrapper handles
+     horizontal scrolling.
+     Columns: 1.S.No 2.Member/Leader Name 3.Enrollment No.
+              4.Location 5.Baseline Date 6.Midline Date
+              7.Endline Date 8.Actions
+     Total width sum: 50+160+130+150+100+100+100+130 = 920px.
+     min-width on table bumped to 920px below. */
+  #page-mgjAssessmentList .data-table th:nth-child(1),
+  #page-mgjAssessmentList .data-table td:nth-child(1),
+  #page-akAssessmentList  .data-table th:nth-child(1),
+  #page-akAssessmentList  .data-table td:nth-child(1) {
+    width: 50px; text-align: center;
+  }
+  #page-mgjAssessmentList .data-table th:nth-child(2),
+  #page-mgjAssessmentList .data-table td:nth-child(2),
+  #page-akAssessmentList  .data-table th:nth-child(2),
+  #page-akAssessmentList  .data-table td:nth-child(2) {
+    width: 160px;
+  }
+  #page-mgjAssessmentList .data-table th:nth-child(3),
+  #page-mgjAssessmentList .data-table td:nth-child(3),
+  #page-akAssessmentList  .data-table th:nth-child(3),
+  #page-akAssessmentList  .data-table td:nth-child(3) {
+    width: 130px;
+  }
+  #page-mgjAssessmentList .data-table th:nth-child(4),
+  #page-mgjAssessmentList .data-table td:nth-child(4),
+  #page-akAssessmentList  .data-table th:nth-child(4),
+  #page-akAssessmentList  .data-table td:nth-child(4) {
+    width: 150px;
+  }
+  /* Trailing-column widths so Baseline / Midline / Endline Date and
+     Actions stay aligned across thead + tbody with table-layout:fixed. */
+  #page-mgjAssessmentList .data-table th:nth-last-child(1),
+  #page-mgjAssessmentList .data-table td:nth-last-child(1),
+  #page-akAssessmentList  .data-table th:nth-last-child(1),
+  #page-akAssessmentList  .data-table td:nth-last-child(1) {
+    width: 130px;
+  }
+  #page-mgjAssessmentList .data-table th:nth-last-child(2),
+  #page-mgjAssessmentList .data-table td:nth-last-child(2),
+  #page-akAssessmentList  .data-table th:nth-last-child(2),
+  #page-akAssessmentList  .data-table td:nth-last-child(2),
+  #page-mgjAssessmentList .data-table th:nth-last-child(3),
+  #page-mgjAssessmentList .data-table td:nth-last-child(3),
+  #page-akAssessmentList  .data-table th:nth-last-child(3),
+  #page-akAssessmentList  .data-table td:nth-last-child(3),
+  #page-mgjAssessmentList .data-table th:nth-last-child(4),
+  #page-mgjAssessmentList .data-table td:nth-last-child(4),
+  #page-akAssessmentList  .data-table th:nth-last-child(4),
+  #page-akAssessmentList  .data-table td:nth-last-child(4) {
+    width: 100px;
+    text-align: center;
+  }
+  /* Bump min-width to match the column-width sum so all columns
+     fit at their declared widths and the .data-table-scroll
+     wrapper carries the horizontal scroll. */
+  #page-mgjAssessmentList .data-table,
+  #page-akAssessmentList  .data-table {
+    min-width: 920px !important;
+  }
+  /* Keep individual cells from wrapping — readability beats fitting. */
+  #page-mgjAssessmentList .data-table th,
+  #page-mgjAssessmentList .data-table td,
+  #page-akAssessmentList  .data-table th,
+  #page-akAssessmentList  .data-table td,
+  #page-assessmentList    .data-table th,
+  #page-assessmentList    .data-table td,
+  #page-addMgjAssessment  .data-table th,
+  #page-addMgjAssessment  .data-table td,
+  #page-addAkAssessment   .data-table th,
+  #page-addAkAssessment   .data-table td,
+  #page-addAssessment     .data-table th,
+  #page-addAssessment     .data-table td {
+    white-space: nowrap;
+  }
+  /* Visual hint that there's more content to the right — subtle inset
+     shadow on the right edge of the scrolling region. */
+  #page-mgjAssessmentList .data-table,
+  #page-akAssessmentList  .data-table,
+  #page-assessmentList    .data-table,
+  #page-addMgjAssessment  .data-table,
+  #page-addAkAssessment   .data-table,
+  #page-addAssessment     .data-table {
+    box-shadow: inset -10px 0 10px -10px rgba(0,0,0,0.18);
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  /* ============================================================
+     2026-06-06 — Add Assessment member-picker visibility hint.
+     The picker section (#mgjAddMemberSection / #akAddMemberSection)
+     is display:none until the user picks an Assessment Type. On
+     mobile that's confusing because the screen ends at the State /
+     Centre fields with just a Cancel/Proceed and no obvious clue
+     that a member-picker awaits. Add a "select Type first" hint
+     above the Cancel/Proceed actions that's only visible when the
+     picker is still hidden (handled in app.js via mgjAddMemberSection's
+     own display flip — see _showMgjAddMemberHint).
+     This rule just styles the hint so it reads as guidance, not error.
+  */
+  #page-addMgjAssessment #mgjAddMemberHint,
+  #page-addAkAssessment  #akAddMemberHint {
+    background: #f8eff6;
+    border-left: 4px solid #732269;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #732269;
+    margin: 16px 0;
+    line-height: 1.45;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  #page-addMgjAssessment #mgjAddMemberHint i,
+  #page-addAkAssessment  #akAddMemberHint i {
+    font-size: 16px;
+    margin-top: 2px;
+  }
+
+  /* ============================================================
+     BASELINE REPORT — KPI grid + charts stack
+     ============================================================ */
+  /* KPI tiles: 2-up on tablet */
+  #page-mgjBaselineReport .kpi-grid,
+  #page-akBaselineReport  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  #page-mgjBaselineReport .kpi-card,
+  #page-akBaselineReport  .kpi-card {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 6px;
+    border-left-width: 3px;
+  }
+  #page-mgjBaselineReport .kpi-icon,
+  #page-akBaselineReport  .kpi-icon {
+    width: 36px; height: 36px; font-size: 16px;
+  }
+  #page-mgjBaselineReport .kpi-content h3,
+  #page-akBaselineReport  .kpi-content h3 {
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+  #page-mgjBaselineReport .kpi-content p,
+  #page-akBaselineReport  .kpi-content p {
+    font-size: 11.5px;
+    line-height: 1.3;
+  }
+
+  /* Charts: 1 per row */
+  #page-mgjBaselineReport .charts-row,
+  #page-akBaselineReport  .charts-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  #page-mgjBaselineReport .chart-card,
+  #page-akBaselineReport  .chart-card {
+    padding: 14px;
+  }
+  #page-mgjBaselineReport .chart-card h3,
+  #page-akBaselineReport  .chart-card h3 {
+    font-size: 13.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+  #page-mgjBaselineReport .chart-card canvas,
+  #page-akBaselineReport  .chart-card canvas {
+    max-height: 260px;
+  }
+
+  /* 2026-06-06 (v4): The chart-card stays in normal flow — overflow is
+     handled by the .chart-canvas-outer wrap that _brMakeChart inserts
+     around the canvas for bar / line types only. The chart RENDERS at
+     full desktop dimensions inside the .chart-canvas-inner wrap and
+     the user swipes the outer wrap to see the whole chart. Labels,
+     legends and axis text stay at their original size — no scaling,
+     no truncation. */
+  #page-mgjBaselineReport .chart-card.chart-bar,
+  #page-akBaselineReport  .chart-card.chart-bar,
+  #page-mgjBaselineReport .chart-card.chart-line,
+  #page-akBaselineReport  .chart-card.chart-line {
+    overflow: visible;
+  }
+  /* Kill any prior canvas min-width — width is enforced by the
+     .chart-canvas-inner wrapper below, NOT the canvas itself. */
+  #page-mgjBaselineReport .chart-card.chart-bar canvas,
+  #page-akBaselineReport  .chart-card.chart-bar canvas,
+  #page-mgjBaselineReport .chart-card.chart-line canvas,
+  #page-akBaselineReport  .chart-card.chart-line canvas,
+  #page-mgjBaselineReport .chart-card.chart-horizontal-bar canvas,
+  #page-akBaselineReport  .chart-card.chart-horizontal-bar canvas {
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+
+  /* Outer wrap = the scroll surface. Takes available chart-card width
+     and scrolls horizontally so the inner fixed-width chart can be
+     swiped into view. Visible 8px purple scrollbar matches the rest
+     of the Assessment module. */
+  #page-mgjBaselineReport .chart-canvas-outer,
+  #page-akBaselineReport  .chart-canvas-outer {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #732269 #f4eef3;
+  }
+  #page-mgjBaselineReport .chart-canvas-outer::-webkit-scrollbar,
+  #page-akBaselineReport  .chart-canvas-outer::-webkit-scrollbar {
+    height: 8px;
+    -webkit-appearance: none;
+  }
+  #page-mgjBaselineReport .chart-canvas-outer::-webkit-scrollbar-track,
+  #page-akBaselineReport  .chart-canvas-outer::-webkit-scrollbar-track {
+    background: #f4eef3;
+    border-radius: 4px;
+  }
+  #page-mgjBaselineReport .chart-canvas-outer::-webkit-scrollbar-thumb,
+  #page-akBaselineReport  .chart-canvas-outer::-webkit-scrollbar-thumb {
+    background: #732269;
+    border-radius: 4px;
+    min-width: 32px;
+  }
+
+  /* Inner wrap = the FIXED desktop-width chart container. Chart.js
+     with responsive:true measures this element's offsetWidth and
+     renders the canvas at exactly that size, so on mobile we get a
+     full 800px chart that simply needs swiping to view fully. */
+  #page-mgjBaselineReport .chart-card.chart-bar .chart-canvas-inner,
+  #page-akBaselineReport  .chart-card.chart-bar .chart-canvas-inner,
+  #page-mgjBaselineReport .chart-card.chart-line .chart-canvas-inner,
+  #page-akBaselineReport  .chart-card.chart-line .chart-canvas-inner {
+    display: block;
+    width: 800px;
+    height: 340px;
+    position: relative;
+  }
+  /* Horizontal-bar charts (indexAxis:'y') usually have many category
+     rows and longer text — give them more vertical room too so labels
+     don't crowd. */
+  #page-mgjBaselineReport .chart-card.chart-horizontal-bar .chart-canvas-inner,
+  #page-akBaselineReport  .chart-card.chart-horizontal-bar .chart-canvas-inner {
+    width: 800px;
+    height: 460px;
+  }
+  /* 2026-06-06 v11 belt-and-suspenders: any .chart-canvas-inner
+     inside a Baseline Report card on mobile gets guaranteed
+     800x460 fallback dimensions even if the JS hasn't yet tagged
+     the parent .chart-card with chart-bar / chart-horizontal-bar.
+     Without this, a race between matchMedia evaluation and
+     Chart.js's responsive measurement could leave the canvas
+     measuring its display:contents parent as 0x0, which is the
+     "only one bar visible" symptom. */
+  #page-mgjBaselineReport .chart-canvas-inner,
+  #page-akBaselineReport  .chart-canvas-inner {
+    display: block !important;
+    width: 800px !important;
+    min-height: 460px !important;
+    position: relative !important;
+  }
+  #page-mgjBaselineReport .chart-canvas-outer,
+  #page-akBaselineReport  .chart-canvas-outer {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  /* Donut / pie / radar / polarArea — keep circular + responsive. */
+  #page-mgjBaselineReport .chart-card.chart-doughnut,
+  #page-mgjBaselineReport .chart-card.chart-pie,
+  #page-mgjBaselineReport .chart-card.chart-radar,
+  #page-mgjBaselineReport .chart-card.chart-polarArea,
+  #page-akBaselineReport  .chart-card.chart-doughnut,
+  #page-akBaselineReport  .chart-card.chart-pie,
+  #page-akBaselineReport  .chart-card.chart-radar,
+  #page-akBaselineReport  .chart-card.chart-polarArea {
+    overflow: visible;
+  }
+  /* 2026-06-06 v8: User asked for the donut/pie charts to be SMALL
+     and SQUARE — explicitly match how Q92 Public Transport and
+     Q96 Feels Safe Walking Alone render. Q50/Q57/Q72/Q78/Q90 were
+     coming out taller / wider / stretched because the canvas's
+     intrinsic 300x150 governed when CSS wasn't yet applied.
+     This rule pins ALL baseline-report donut/pie/radar/polarArea
+     canvases to a small fixed-size circle: 240×240 with the
+     legend below taking the remaining card space. No min-height
+     on chart-card so the card stays compact. */
+  #page-mgjBaselineReport .chart-card.chart-doughnut canvas,
+  #page-mgjBaselineReport .chart-card.chart-pie canvas,
+  #page-mgjBaselineReport .chart-card.chart-radar canvas,
+  #page-mgjBaselineReport .chart-card.chart-polarArea canvas,
+  #page-akBaselineReport  .chart-card.chart-doughnut canvas,
+  #page-akBaselineReport  .chart-card.chart-pie canvas,
+  #page-akBaselineReport  .chart-card.chart-radar canvas,
+  #page-akBaselineReport  .chart-card.chart-polarArea canvas {
+    min-width: 0 !important;
+    width: 220px !important;
+    height: 220px !important;
+    max-width: 220px !important;
+    max-height: 220px !important;
+    margin: 0 auto;
+    display: block;
+    aspect-ratio: 1 / 1;
+  }
+  /* 2026-06-06 v11 belt-and-suspenders for donut/pie sizing:
+     identify donut/pie canvases structurally — they're the
+     ones that are DIRECT children of .chart-card (bars/lines
+     have a .chart-canvas-outer > .chart-canvas-inner wrap
+     in between). This rule pins them to 220×220 even if the
+     chart-doughnut / chart-pie class hasn't been tagged on
+     the card yet by JS. */
+  #page-mgjBaselineReport .chart-card > canvas,
+  #page-akBaselineReport  .chart-card > canvas {
+    min-width: 0 !important;
+    width: 220px !important;
+    height: 220px !important;
+    max-width: 220px !important;
+    max-height: 220px !important;
+    margin: 0 auto !important;
+    display: block !important;
+    aspect-ratio: 1 / 1;
+  }
+  /* 2026-06-06 v14: Fit-to-screen group (revised). Q91, Q56, Q73
+     are MOVED OUT and back to the 800px horizontal-scroll group
+     because user wants their long y-axis labels to wrap cleanly
+     AND wants horizontal scroll on the chart itself. Their JS
+     chart configs now pass labels through _akBrWrapLabel(26) so
+     the wrapped text is laid out by Chart.js naturally.
+     Remaining fit-screen members: Q6, Family Income, Q44 vs Q45,
+     Q74, Q68. */
+  #page-akBaselineReport .chart-canvas-inner:has(#akBrEducationChart),
+  #page-akBaselineReport .chart-canvas-inner:has(#akBrIncomeChart),
+  #page-akBaselineReport .chart-canvas-inner:has(#akBrCareerAspirationsChart),
+  #page-akBaselineReport .chart-canvas-inner:has(#akBrSrhQ74Chart) {
+    width: 100% !important;
+    min-height: 240px !important;
+    height: 240px !important;
+  }
+  #page-akBaselineReport .chart-canvas-inner:has(#akBrGbvQ68Chart) {
+    width: 100% !important;
+    min-height: 340px !important;
+    height: 340px !important;
+  }
+  /* Suppress horizontal scroll for the fit-to-screen group */
+  #page-akBaselineReport .chart-canvas-outer:has(#akBrEducationChart),
+  #page-akBaselineReport .chart-canvas-outer:has(#akBrIncomeChart),
+  #page-akBaselineReport .chart-canvas-outer:has(#akBrCareerAspirationsChart),
+  #page-akBaselineReport .chart-canvas-outer:has(#akBrSrhQ74Chart),
+  #page-akBaselineReport .chart-canvas-outer:has(#akBrGbvQ68Chart) {
+    overflow-x: hidden !important;
+  }
+  /* Cap canvas max-height so Chart.js can't blow these up */
+  #page-akBaselineReport #akBrEducationChart,
+  #page-akBaselineReport #akBrIncomeChart,
+  #page-akBaselineReport #akBrCareerAspirationsChart,
+  #page-akBaselineReport #akBrSrhQ74Chart {
+    max-height: 240px !important;
+  }
+  #page-akBaselineReport #akBrGbvQ68Chart {
+    max-height: 340px !important;
+  }
+  /* 2026-06-06 v12: Compact donut/pie chart-cards. User wants
+     Q50, Q90, Q57, Q72, Q78 (and others) to "look like Q92/Q96".
+     The canvas was already pinned to 220x220 — tighten the card
+     padding + give it a fixed min-height so all donut cards are
+     visually uniform regardless of legend item count. */
+  #page-akBaselineReport .chart-card.chart-doughnut,
+  #page-akBaselineReport .chart-card.chart-pie,
+  #page-mgjBaselineReport .chart-card.chart-doughnut,
+  #page-mgjBaselineReport .chart-card.chart-pie {
+    padding: 12px !important;
+  }
+  /* Chart card title (the "Unrestricted Local Movement (Q91)" text)
+     needs to wrap on mobile, not get ellipsised — long question
+     titles otherwise lost their (Q91) suffix. */
+  #page-mgjBaselineReport .chart-card h3,
+  #page-akBaselineReport  .chart-card h3 {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.35;
+  }
+
+  /* Section headings inside the Baseline Report */
+  #page-mgjBaselineReport h2,
+  #page-akBaselineReport  h2 { font-size: 1.1rem; margin-top: 12px; }
+  #page-mgjBaselineReport h3,
+  #page-akBaselineReport  h3 { font-size: 0.98rem; }
+
+  /* 2026-06-06 (v2): Visible scrollbars on every horizontally-
+     scrollable surface across the Assessment + Baseline flows.
+     Default mobile webkit scrollbars are 0-width so users had no
+     visual hint that swipe was possible. These rules show a slim
+     purple-tinted bar that's still tappable to drag. */
+  #page-mgjAssessmentList .data-table::-webkit-scrollbar,
+  #page-akAssessmentList  .data-table::-webkit-scrollbar,
+  #page-assessmentList    .data-table::-webkit-scrollbar,
+  #page-addMgjAssessment  .data-table::-webkit-scrollbar,
+  #page-addAkAssessment   .data-table::-webkit-scrollbar,
+  #page-addAssessment     .data-table::-webkit-scrollbar,
+  #page-mgjBaselineReport .chart-card::-webkit-scrollbar,
+  #page-akBaselineReport  .chart-card::-webkit-scrollbar {
+    height: 8px;
+    -webkit-appearance: none;
+  }
+  #page-mgjAssessmentList .data-table::-webkit-scrollbar-track,
+  #page-akAssessmentList  .data-table::-webkit-scrollbar-track,
+  #page-assessmentList    .data-table::-webkit-scrollbar-track,
+  #page-addMgjAssessment  .data-table::-webkit-scrollbar-track,
+  #page-addAkAssessment   .data-table::-webkit-scrollbar-track,
+  #page-addAssessment     .data-table::-webkit-scrollbar-track,
+  #page-mgjBaselineReport .chart-card::-webkit-scrollbar-track,
+  #page-akBaselineReport  .chart-card::-webkit-scrollbar-track {
+    background: #f4eef3;
+    border-radius: 4px;
+  }
+  #page-mgjAssessmentList .data-table::-webkit-scrollbar-thumb,
+  #page-akAssessmentList  .data-table::-webkit-scrollbar-thumb,
+  #page-assessmentList    .data-table::-webkit-scrollbar-thumb,
+  #page-addMgjAssessment  .data-table::-webkit-scrollbar-thumb,
+  #page-addAkAssessment   .data-table::-webkit-scrollbar-thumb,
+  #page-addAssessment     .data-table::-webkit-scrollbar-thumb,
+  #page-mgjBaselineReport .chart-card::-webkit-scrollbar-thumb,
+  #page-akBaselineReport  .chart-card::-webkit-scrollbar-thumb {
+    background: #732269;
+    border-radius: 4px;
+    min-width: 32px;
+  }
+  /* Firefox + standards-track equivalent. */
+  #page-mgjAssessmentList .data-table,
+  #page-akAssessmentList  .data-table,
+  #page-assessmentList    .data-table,
+  #page-addMgjAssessment  .data-table,
+  #page-addAkAssessment   .data-table,
+  #page-addAssessment     .data-table,
+  #page-mgjBaselineReport .chart-card,
+  #page-akBaselineReport  .chart-card {
+    scrollbar-width: thin;
+    scrollbar-color: #732269 #f4eef3;
+  }
+
+  /* ============================================================
+     MODALS — full-screen on mobile
+     ============================================================ */
+  .modal { padding: 0; align-items: stretch; }
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100vh;
+    min-height: 100vh;
+    border-radius: 0;
+  }
+  .modal-header { padding: 14px 16px; }
+  .modal-header h3 { font-size: 1rem; }
+  .modal-body { padding: 16px; }
+  .modal-footer {
+    padding: 12px 16px;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .modal-footer .btn { width: 100%; min-height: 46px; justify-content: center; }
+}
+
+/* ============================================================
+   TIER 2 — PHONE (<= 480px) — squeeze further
+   ============================================================ */
+@media (max-width: 480px) {
+
+  .app-header { padding: 0 8px; height: 52px; }
+  .header-logo { height: 28px; }
+  .header-title h1 { font-size: 0.85rem; max-width: 40vw; }
+  .app-main { padding: 12px 10px; }
+
+  /* KPI grid → single column on small phones */
+  #page-mgjBaselineReport .kpi-grid,
+  #page-akBaselineReport  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Tighter list table */
+  #page-mgjAssessmentList .data-table th,
+  #page-mgjAssessmentList .data-table td,
+  #page-akAssessmentList  .data-table th,
+  #page-akAssessmentList  .data-table td {
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+
+  /* Make every action button in the form fill its row */
+  #page-addMgjAssessment .form-actions .btn,
+  #page-addAkAssessment  .form-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  /* Charts get a slightly shorter canvas to fit above-the-fold */
+  #page-mgjBaselineReport .chart-card canvas,
+  #page-akBaselineReport  .chart-card canvas {
+    max-height: 220px;
+  }
+}

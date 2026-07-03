@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MGJ Program MIS — Prototype (Azad Foundation)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #e67e22;
+      --primary-dark: #c9600c;
+      --secondary: #2c3e50;
+      --bg: #f4f6f8;
+      --surface: #ffffff;
+      --border: #e1e4e8;
+      --text: #2c3e50;
+      --text-light: #7f8c8d;
+      --success: #27ae60;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --info: #3498db;
+      --purple: #9b59b6;
+      --radius: 8px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+    /* Layout */
+    .app-container { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: #fff; border-right: 1px solid var(--border); position: fixed; top: 0; bottom: 0; left: 0; overflow-y: auto; }
+    .sidebar-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-header .logo { width: 36px; height: 36px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 16px; }
+    .sidebar-header h1 { font-size: 15px; color: var(--secondary); font-weight: 700; }
+    .sidebar-header small { display: block; font-size: 11px; color: var(--text-light); font-weight: normal; }
+    .nav { padding: 12px 0; }
+    .nav-section { padding: 8px 20px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); font-weight: 600; margin-top: 8px; }
+    .nav-item { padding: 10px 20px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); border-left: 3px solid transparent; transition: all 0.15s; font-size: 13px; }
+    .nav-item:hover { background: #fafafa; }
+    .nav-item.active { background: #fff5eb; color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+    .nav-item i { width: 16px; }
+
+    .main { flex: 1; margin-left: 260px; }
+    .topbar { background: #fff; padding: 14px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .topbar .search { flex: 1; max-width: 360px; position: relative; }
+    .topbar .search input { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+    .topbar .search i { position: absolute; left: 12px; top: 10px; color: var(--text-light); }
+    .topbar .user { display: flex; align-items: center; gap: 10px; }
+    .topbar .user .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+
+    .content { padding: 24px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 22px; color: var(--secondary); font-weight: 700; }
+    .page-title small { display: block; font-size: 13px; color: var(--text-light); font-weight: normal; margin-top: 2px; }
+    .breadcrumb { font-size: 12px; color: var(--text-light); margin-bottom: 6px; }
+    .breadcrumb a { color: var(--text-light); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--primary); }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { background: #f8f9fa; border-color: var(--text-light); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon { padding: 6px 9px; }
+
+    /* Cards */
+    .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .card-title { font-size: 15px; font-weight: 600; color: var(--secondary); }
+
+    /* Stat cards */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; }
+    .stat-card .icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; flex-shrink: 0; }
+    .stat-card .label { font-size: 12px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-card .value { font-size: 22px; font-weight: 700; color: var(--secondary); }
+
+    /* Tables */
+    .table-wrap { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    table.data { width: 100%; border-collapse: collapse; }
+    table.data th { background: #f8f9fa; text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-light); font-weight: 600; border-bottom: 1px solid var(--border); }
+    table.data td { padding: 12px; border-bottom: 1px solid #f1f3f5; font-size: 13px; }
+    table.data tr:hover td { background: #fafbfc; }
+    table.data tr:last-child td { border-bottom: none; }
+
+    /* Forms */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 12px; color: var(--text); font-weight: 600; }
+    .form-group input, .form-group select, .form-group textarea { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); }
+    .form-group.full { grid-column: 1 / -1; }
+    .req { color: var(--danger); }
+    .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+    /* Badges */
+    .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .badge-active { background: #d4edda; color: #155724; }
+    .badge-walkout { background: #f8d7da; color: #721c24; }
+    .badge-leader { background: #fde3c4; color: #a45105; }
+    .badge-alumni { background: #d6ecff; color: #0b5394; }
+    .badge-info { background: #e0f2fe; color: #0369a1; }
+    .badge-warn { background: #fff3cd; color: #856404; }
+
+    /* Filters */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; align-items: end; }
+    .filter-bar .form-group { min-width: 140px; }
+    .filter-bar .form-group label { font-size: 11px; }
+    .filter-bar .form-group input, .filter-bar .form-group select { padding: 6px 8px; font-size: 12px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+    .tab-btn { padding: 10px 16px; border: none; background: transparent; cursor: pointer; font-size: 13px; color: var(--text-light); border-bottom: 3px solid transparent; white-space: nowrap; }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Sub-tabs (pill-style) */
+    .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; background: #fff; padding: 8px; border-radius: 10px; box-shadow: var(--shadow); }
+    .sub-btn { padding: 8px 16px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 13px; color: var(--text); border-radius: 6px; white-space: nowrap; transition: all 0.15s; font-weight: 500; }
+    .sub-btn:hover { background: #f8f9fa; }
+    .sub-btn.active { background: var(--primary); color: #fff; }
+    .sub-btn .count { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px; font-size: 11px; background: rgba(255,255,255,0.25); }
+    .sub-btn:not(.active) .count { background: #f1f3f5; color: var(--text-light); }
+
+    /* Attendance grid */
+    .attendance-grid { overflow-x: auto; }
+    .attendance-grid table { width: 100%; border-collapse: collapse; }
+    .attendance-grid th, .attendance-grid td { padding: 8px; border: 1px solid var(--border); font-size: 13px; }
+    .attendance-grid th { background: #f8f9fa; font-weight: 600; font-size: 12px; }
+    .attendance-grid .status-chip { padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; border: 1px solid transparent; margin-right: 3px; }
+    .attendance-grid .chip-p { background: #d4edda; color: #155724; }
+    .attendance-grid .chip-p.active { background: var(--success); color: #fff; }
+    .attendance-grid .chip-a { background: #f8d7da; color: #721c24; }
+    .attendance-grid .chip-a.active { background: var(--danger); color: #fff; }
+    .attendance-grid .chip-l { background: #fff3cd; color: #856404; }
+    .attendance-grid .chip-l.active { background: var(--warning); color: #fff; }
+
+    /* Story card */
+    .story-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 14px; border-left: 4px solid var(--primary); }
+    .story-card h4 { color: var(--secondary); margin-bottom: 6px; }
+    .story-card .meta { font-size: 12px; color: var(--text-light); margin-bottom: 10px; }
+    .story-card .excerpt { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #fff; border-radius: var(--radius); padding: 24px; min-width: 400px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 16px; }
+    .close-modal { cursor: pointer; color: var(--text-light); }
+
+    /* Utility */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .empty { padding: 40px; text-align: center; color: var(--text-light); font-size: 14px; }
+    .empty i { font-size: 40px; margin-bottom: 10px; display: block; color: var(--border); }
+
+    /* Radar wrapper */
+    .radar-wrap { max-width: 520px; margin: 0 auto; }
+
+    /* Photo uploads */
+    .photo-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .photo-strip .photo { width: 80px; height: 80px; border-radius: 6px; background: #f1f3f5 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23bbb" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>') center/30px no-repeat; border: 1px dashed #ccc; }
+    .photo-upload-hint { background: #fff8f0; border: 1px dashed #f6c78e; padding: 14px; border-radius: 6px; font-size: 12px; color: #a45105; text-align: center; margin-top: 8px; }
+
+    /* Workflow banner */
+    .workflow-banner { background: linear-gradient(135deg, #fff5eb 0%, #ffe8d1 100%); border-left: 4px solid var(--primary); padding: 14px 18px; border-radius: 6px; margin-bottom: 18px; font-size: 13px; color: #a45105; display: flex; align-items: center; gap: 10px; }
+    .workflow-banner i { font-size: 18px; }
+
+    /* Pending pills */
+    .pending-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; margin-right: 6px; }
+
+    /* Prototype banner */
+    .proto-banner { position: fixed; bottom: 12px; right: 12px; background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 20px; font-size: 11px; box-shadow: 0 4px 14px rgba(0,0,0,0.2); z-index: 50; opacity: 0.9; }
+    .proto-banner b { color: #fb923c; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">AF</div>
+      <div>
+        <h1>Azad Foundation</h1>
+        <small>MGJ Program MIS</small>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-item active" data-page="dashboard"><i class="fas fa-th-large"></i> Dashboard</div>
+      <div class="nav-item" data-page="participants"><i class="fas fa-users"></i> Participants</div>
+      <div class="nav-item" data-page="setup"><i class="fas fa-cogs"></i> Program Setup</div>
+      <div class="nav-item" data-page="activities"><i class="fas fa-calendar-alt"></i> Activities</div>
+      <div class="nav-item" data-page="assessments"><i class="fas fa-clipboard-check"></i> Assessments</div>
+      <div class="nav-item" data-page="fieldlog"><i class="fas fa-pen-alt"></i> Field Log</div>
+      <div class="nav-item" data-page="reports"><i class="fas fa-chart-line"></i> Reports</div>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="search"><i class="fas fa-search"></i><input placeholder="Search members, events, stories…"></div>
+      <div class="user">
+        <span style="font-size: 12px; color: var(--text-light);">Project In-Charge</span>
+        <div class="avatar">PI</div>
+        <span style="font-size: 13px; font-weight: 600;">Kedar S.</span>
+      </div>
+    </div>
+
+    <div class="content" id="pageContent"></div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<div class="proto-banner"><b>PROTOTYPE</b> • MGJ Workflow Preview</div>
+
+<script>
+// ============================================================
+// MGJ PROTOTYPE — self-contained demo
+// ============================================================
+
+// ---- Sample Data ----
+const STATE = {
+  centres: ['Delhi North', 'Delhi South', 'Delhi East', 'Kolkata', 'Jaipur'],
+
+  batches: [
+    { id: 1, name: 'Delhi North 2025-28', centre: 'Delhi North', start: 2025, end: 2028, type: 'Mixed', status: 'Active', members: 42, leaders: 12 },
+    { id: 2, name: 'Delhi South 2025-28', centre: 'Delhi South', start: 2025, end: 2028, type: 'Mixed', status: 'Active', members: 38, leaders: 9 },
+    { id: 3, name: 'Kolkata 2025-28', centre: 'Kolkata', start: 2025, end: 2028, type: 'Member', status: 'Active', members: 28, leaders: 0 },
+    { id: 4, name: 'Delhi 2023-26', centre: 'Delhi North', start: 2023, end: 2026, type: 'Mixed', status: 'Active', members: 54, leaders: 18 },
+    { id: 5, name: 'Delhi 2021-24', centre: 'Delhi North', start: 2021, end: 2024, type: 'Mixed', status: 'Alumni', members: 48, leaders: 16 },
+  ],
+
+  groups: [
+    { id: 1, batchId: 1, name: 'Group 1 — Sunder Nagri', area: 'Sunder Nagri', coordinator: 'Hari K.', size: 14 },
+    { id: 2, batchId: 1, name: 'Group 2 — Welcome', area: 'Welcome', coordinator: 'Aman R.', size: 16 },
+    { id: 3, batchId: 1, name: 'Group 3 — Bhalaswa', area: 'Bhalaswa Dairy', coordinator: 'Dipesh', size: 12 },
+    { id: 4, batchId: 2, name: 'Group 1 — Badarpur', area: 'Badarpur', coordinator: 'Umer K.', size: 18 },
+    { id: 5, batchId: 2, name: 'Group 2 — Tughlaq', area: 'Tughlaqabad', coordinator: 'Rahul', size: 20 },
+  ],
+
+  topics: [
+    { id: 1, code: 'IND-CON', name: 'Indian Constitution — Rights, duties, values', keywords: 'constitution, fundamental rights, citizenship', phase: 'Foundation' },
+    { id: 2, code: 'COLL', name: 'Importance of Collectivization', keywords: 'group, community, togetherness', phase: 'Foundation' },
+    { id: 3, code: 'GEND-AW', name: 'Gender Awareness — Understanding Gender &amp; Sex', keywords: 'gender, sex, identity', phase: 'Core' },
+    { id: 4, code: 'GEND-ROLE', name: 'Gender Roles &amp; Socialization', keywords: 'gender roles, socialization, patriarchy', phase: 'Core' },
+    { id: 5, code: 'UCW', name: 'Unpaid Care Work &amp; Impact on Women', keywords: 'unpaid care, domestic, household work', phase: 'Core' },
+    { id: 6, code: 'UCW-WRK', name: 'Demonstration Workshop on Unpaid Care Work', keywords: 'care work, demo, practice', phase: 'Core' },
+    { id: 7, code: 'LANG', name: 'Gender in Language, Idioms, Culture', keywords: 'language, abusive, cultural impact', phase: 'Core' },
+    { id: 8, code: 'NTL', name: 'Understanding NTL — Role of Men &amp; Boys', keywords: 'non-traditional livelihoods, NTL, access', phase: 'Advanced' },
+    { id: 9, code: 'MASC', name: 'Men &amp; Masculinity — Toxic Masculinity', keywords: 'masculinity, toxic, men, boys', phase: 'Advanced' },
+    { id: 10, code: 'VIO-STOP', name: 'Role of Young Men &amp; Boys to Stop Violence', keywords: 'violence, prevention, action, legal resource', phase: 'Advanced' },
+    { id: 11, code: 'GBV', name: 'Gender-Based Violence — forms &amp; impact', keywords: 'GBV, violence, impact', phase: 'Core' },
+    { id: 12, code: 'SEX', name: 'Body &amp; Sexualities — Right to Sexuality', keywords: 'sexuality, body, identity', phase: 'Advanced' },
+    { id: 13, code: 'COMM-SKL', name: 'Communication Skills', keywords: 'communication, interpersonal', phase: 'Skills' },
+    { id: 14, code: 'NEGO', name: 'Negotiation &amp; Taking Action', keywords: 'negotiation, action, advocacy', phase: 'Skills' },
+    { id: 15, code: 'DECI', name: 'Decision Making Process', keywords: 'decision, critical thinking', phase: 'Skills' },
+    { id: 16, code: 'CAREER', name: 'Career Options &amp; Well-being', keywords: 'career, wellbeing, future', phase: 'Skills' },
+    { id: 17, code: 'OBR', name: 'Campaign: One Billion Rising', keywords: 'campaign, OBR, global', phase: 'Campaign' },
+    { id: 18, code: 'GKS', name: 'Campaign: Ghar ka Kaam Sabka Kaam', keywords: 'campaign, flagship, GKS', phase: 'Campaign' },
+    { id: 19, code: 'SAMANTA', name: 'Samanta Bandhan', keywords: 'campaign, bandhan, equality', phase: 'Campaign' },
+    { id: 20, code: 'WWW', name: 'WWW Mobilization Activities', keywords: 'WWW, mobilization, women', phase: 'Campaign' },
+    { id: 21, code: 'PATRI', name: 'Patriarchy — Power &amp; Privilege', keywords: 'patriarchy, power, privilege', phase: 'Core' },
+    { id: 22, code: 'EMP', name: 'Empathy and Social Change', keywords: 'empathy, social change', phase: 'Skills' },
+  ],
+
+  members: [
+    { id: 1, enroll: 'AF/MGJ-Del/2025-28/001', name: 'Ayan Khan', age: 17, area: 'Welcome', batchId: 1, groupId: 2, isLeader: true, phone: '8929228700', status: 'Active', caste: 'OBC', religion: 'Muslim', familyCount: 4, monthlyIncome: 28000 },
+    { id: 2, enroll: 'AF/MGJ-Del/2025-28/002', name: 'Aman Yadav', age: 17, area: 'Welcome', batchId: 1, groupId: 2, isLeader: false, phone: '8929228701', status: 'Active', caste: 'OBC', religion: 'Muslim', familyCount: 3, monthlyIncome: 15000 },
+    { id: 3, enroll: 'AF/MGJ-Del/2025-28/003', name: 'Hemant Singh', age: 18, area: 'Welcome', batchId: 1, groupId: 2, isLeader: true, phone: '9999070235', status: 'Active', caste: 'General', religion: 'Hindu', familyCount: 7, monthlyIncome: 30000 },
+    { id: 4, enroll: 'AF/MGJ-Del/2025-28/004', name: 'Dipesh Kumar', age: 16, area: 'Sunder Nagri', batchId: 1, groupId: 1, isLeader: true, phone: '8851293391', status: 'Active', caste: 'SC', religion: 'Hindu', familyCount: 5, monthlyIncome: 10000 },
+    { id: 5, enroll: 'AF/MGJ-Del/2025-28/005', name: 'Adnan Ali', age: 18, area: 'Sunder Nagri', batchId: 1, groupId: 1, isLeader: true, phone: '9818332454', status: 'Active', caste: 'General', religion: 'Muslim', familyCount: 4, monthlyIncome: 12000 },
+    { id: 6, enroll: 'AF/MGJ-Del/2025-28/006', name: 'Umer Khan', age: 17, area: 'Sunder Nagri', batchId: 1, groupId: 1, isLeader: true, phone: '8700825650', status: 'Active', caste: 'OBC', religion: 'Muslim', familyCount: 6, monthlyIncome: 18000 },
+    { id: 7, enroll: 'AF/MGJ-Del/2025-28/007', name: 'Ravi Sharma', age: 16, area: 'Bhalaswa Dairy', batchId: 1, groupId: 3, isLeader: false, phone: '8851293393', status: 'Active', caste: 'General', religion: 'Hindu', familyCount: 5, monthlyIncome: 10000 },
+    { id: 8, enroll: 'AF/MGJ-Del/2025-28/008', name: 'Prem Yadav', age: 18, area: 'Bhalaswa Dairy', batchId: 1, groupId: 3, isLeader: false, phone: '9250536642', status: 'Active', caste: 'SC', religion: 'Hindu', familyCount: 5, monthlyIncome: 8000 },
+    { id: 9, enroll: 'AF/MGJ-Del/2025-28/009', name: 'Vishesh Kumar', age: 17, area: 'Bhalaswa Dairy', batchId: 1, groupId: 3, isLeader: false, phone: '9990158927', status: 'Active', caste: 'OBC', religion: 'Hindu', familyCount: 3, monthlyIncome: 7500 },
+    { id: 10, enroll: 'AF/MGJ-Del/2025-28/010', name: 'Abhishek Verma', age: 16, area: 'Bhalaswa Dairy', batchId: 1, groupId: 3, isLeader: true, phone: '7827107762', status: 'Active', caste: 'General', religion: 'Hindu', familyCount: 3, monthlyIncome: 7500 },
+    { id: 11, enroll: 'AF/MGJ-Del/2021-24/033', name: 'Pappu Singh', age: 22, area: 'North', batchId: 5, groupId: null, isLeader: true, phone: '9818555022', status: 'Alumni', caste: 'General', religion: 'Hindu', familyCount: 4, monthlyIncome: 14000 },
+    { id: 12, enroll: 'AF/MGJ-Del/2021-24/034', name: 'Shivam Raj', age: 21, area: 'North', batchId: 5, groupId: null, isLeader: false, phone: '9818555044', status: 'Alumni', caste: 'ST', religion: 'Hindu', familyCount: 3, monthlyIncome: 10000 },
+  ],
+
+  events: [
+    { id: 1, type: 'Pakhwada', title: 'Understanding Gender & Sex', date: '2026-04-12', batchId: 1, topicId: 3, groupId: 2, description: 'Interactive session on gender as a social construct', attendance: { 1: 'P', 2: 'P', 3: 'A' }, photos: 3 },
+    { id: 2, type: 'Pakhwada', title: 'Gender Roles & Socialization', date: '2026-04-19', batchId: 1, topicId: 4, groupId: null, description: 'Full-batch session', attendance: { 1: 'P', 2: 'P', 3: 'P', 4: 'P', 5: 'L', 6: 'A', 7: 'P', 8: 'P' }, photos: 5 },
+    { id: 3, type: 'Sports', title: 'Cricket Tournament — Welcome', date: '2026-04-15', batchId: 1, groupId: 2, topicId: null, description: 'Informal engagement', attendance: { 1: 'P', 2: 'P', 3: 'P' }, photos: 8 },
+    { id: 4, type: 'Leadership-P1', title: 'Leadership Dev Phase I — Day 1', date: '2026-03-15', batchId: 1, topicId: null, description: '5-day residential training', attendance: { 1: 'P', 3: 'P', 4: 'P', 5: 'P', 6: 'P', 10: 'P' }, photos: 12 },
+    { id: 5, type: 'Refresher', title: 'Q1 Refresher — Masculinity', date: '2026-05-02', batchId: 1, topicId: 9, description: 'Quarterly refresher for leaders', attendance: {}, photos: 0 },
+    { id: 6, type: 'Campaign', title: 'Ghar ka Kaam Sabka Kaam — Rally', date: '2026-03-08', batchId: null, topicId: 18, description: 'Annual flagship campaign rally', attendance: {}, photos: 22 },
+    { id: 7, type: 'Alumni', title: 'Alumni Meet 2026', date: '2026-02-20', batchId: 5, topicId: null, description: 'Annual alumni reconnect', attendance: { 11: 'P', 12: 'P' }, photos: 10 },
+  ],
+
+  assessments: [
+    { id: 1, memberId: 1, type: 'Baseline', date: '2025-06-10', scores: { violence: 2, household: 3, voice: 2, empathy: 3, gender: 2, leadership: 2 } },
+    { id: 2, memberId: 1, type: 'Midline-1', date: '2026-02-15', scores: { violence: 3, household: 4, voice: 4, empathy: 4, gender: 4, leadership: 3 } },
+    { id: 3, memberId: 3, type: 'Baseline', date: '2025-06-10', scores: { violence: 1, household: 2, voice: 2, empathy: 2, gender: 2, leadership: 3 } },
+    { id: 4, memberId: 3, type: 'Midline-1', date: '2026-02-15', scores: { violence: 3, household: 4, voice: 4, empathy: 4, gender: 4, leadership: 4 } },
+  ],
+
+  caps: [
+    { id: 1, memberId: 4, date: '2026-03-22', type: 'GBV Support', description: 'Supported a neighbour facing domestic violence — helped contact helpline, accompanied to PS.', outcome: 'FIR registered, safe house arranged', location: 'Sunder Nagri', photos: 2, confidential: true },
+    { id: 2, memberId: 5, date: '2026-03-25', type: 'Community Intervention', description: 'Organised ‘Ghar ka kaam, sabka kaam’ street play with 12 boys.', outcome: '40+ community members reached', location: 'Sunder Nagri', photos: 4 },
+    { id: 3, memberId: 10, date: '2026-04-02', type: 'WWW Mobilization', description: 'Mobilized 6 women from community for WWW enrollment drive.', outcome: '4 enrolled successfully', location: 'Bhalaswa Dairy', photos: 2 },
+    { id: 4, memberId: 1, date: '2026-04-05', type: 'Scheme Linkage', description: 'Helped 3 elderly neighbours apply for old-age pension', outcome: '3 applications filed, 1 approved', location: 'Welcome', photos: 1 },
+  ],
+
+  campaigns: [
+    { id: 1, name: 'Ghar ka Kaam Sabka Kaam 2026', type: 'Annual Flagship', start: '2026-03-01', end: '2026-03-15', partners: ['Jagori', 'Nirantar', 'Breakthrough'], participants: 215, locations: 5, photos: 22 },
+    { id: 2, name: 'One Billion Rising 2026', type: 'External', start: '2026-02-14', end: '2026-02-14', partners: ['V-Day', 'Jagori'], participants: 78, locations: 3, photos: 15 },
+    { id: 3, name: "Women's Day Rally 2026", type: 'External', start: '2026-03-08', end: '2026-03-08', partners: ['DCW'], participants: 120, locations: 4, photos: 18 },
+  ],
+
+  stories: [
+    { id: 1, memberId: 4, title: 'From silent observer to community voice', change: 'Behavioral change', date: '2026-03-10', excerpt: 'Dipesh, 16, from Sunder Nagri had never spoken up about the violence he saw at home. After 8 months in the MGJ program, he intervened when his neighbour…' },
+    { id: 2, memberId: 5, title: 'Leading street-plays against patriarchy', change: 'Leadership action', date: '2026-03-20', excerpt: 'Adnan took the initiative to organize three street-play performances across his basti on ‘Ghar ka Kaam Sabka Kaam’. He trained 12 other boys…' },
+    { id: 3, memberId: 11, title: 'Alumni who became a gender-justice trainer', change: 'Community impact', date: '2026-02-25', excerpt: 'Pappu, now an alumnus, is employed as a facilitator and conducts gender-awareness sessions in 3 schools. He credits his transformation to the MGJ…' },
+  ],
+
+  family: [
+    { id: 1, memberId: 4, date: '2026-03-10', activity: 'Parent Meeting', participants: 'Mother + Elder Sister', notes: 'Family shared support for Dipesh attending sessions. Discussed household sharing.', outcome: 'Positive' },
+    { id: 2, memberId: 5, date: '2026-03-15', activity: 'Household Campaign Demo', participants: 'Family of 4', notes: 'Demonstrated UCW division exercise at home.', outcome: 'Positive' },
+    { id: 3, memberId: 1, date: '2026-04-01', activity: 'Parent Meeting', participants: 'Father', notes: 'Initial resistance; commited to letting Ayan continue leadership training.', outcome: 'Neutral' },
+  ],
+
+  kpi: [
+    { batchId: 1, month: '2026-03', pakhwada: 4, sports: 2, leader_training: 1, hh_visits: 12, www_mobilized: 18, www_enrolled: 11, surveys: 0, gbv: 2, aadhaar: 4, schemes: 6, campaigns: 1, orgs_engaged: 3 },
+    { batchId: 2, month: '2026-03', pakhwada: 3, sports: 2, leader_training: 0, hh_visits: 8, www_mobilized: 6, www_enrolled: 3, surveys: 0, gbv: 0, aadhaar: 2, schemes: 1, campaigns: 1, orgs_engaged: 1 },
+    { batchId: 1, month: '2026-04', pakhwada: 2, sports: 1, leader_training: 0, hh_visits: 10, www_mobilized: 9, www_enrolled: 4, surveys: 0, gbv: 1, aadhaar: 3, schemes: 3, campaigns: 0, orgs_engaged: 1 },
+  ],
+};
+
+// ---- Helper ----
+const $ = (id) => document.getElementById(id);
+const h = (tag, props = {}, children = []) => {
+  const el = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') el.className = props[k];
+    else if (k === 'onclick') el.onclick = props[k];
+    else if (k === 'html') el.innerHTML = props[k];
+    else el.setAttribute(k, props[k]);
+  }
+  children.forEach(c => { if (typeof c === 'string') el.appendChild(document.createTextNode(c)); else if (c) el.appendChild(c); });
+  return el;
+};
+const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const memberName = (id) => (STATE.members.find(m => m.id === id) || {}).name || '—';
+const batchName = (id) => (STATE.batches.find(b => b.id === id) || {}).name || '—';
+const topicName = (id) => id ? (STATE.topics.find(t => t.id === id) || {}).name || '—' : '—';
+const groupName = (id) => id ? (STATE.groups.find(g => g.id === id) || {}).name || '—' : 'All groups';
+
+// ---- Navigation ----
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    render(item.dataset.page);
+  });
+});
+
+function setBreadcrumb(parts) {
+  return `<div class="breadcrumb">${parts.map((p, i) => i === parts.length - 1 ? esc(p) : `<a href="#">${esc(p)}</a> <span style="color:#ccc;">›</span> `).join(' ')}</div>`;
+}
+
+// ============================================================
+// PAGES
+// ============================================================
+
+function render(page) {
+  const pc = $('pageContent');
+  if (page === 'dashboard') pc.innerHTML = pageDashboard();
+  else if (page === 'participants') pc.innerHTML = pageParticipantsWrapper();
+  else if (page === 'setup') pc.innerHTML = pageSetupWrapper();
+  else if (page === 'activities') pc.innerHTML = pageActivitiesWrapper();
+  else if (page === 'assessments') { pc.innerHTML = pageAssessments(); setTimeout(renderRadar, 50); }
+  else if (page === 'fieldlog') pc.innerHTML = pageFieldLogWrapper();
+  else if (page === 'reports') pc.innerHTML = pageReportsWrapper();
+  else pc.innerHTML = `<div class="empty"><i class="fas fa-tools"></i> Page not found</div>`;
+  window.scrollTo(0, 0);
+}
+
+// Strip the leading breadcrumb + page-header from a page() output so we can embed just the body
+function stripHeader(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const bc = tmp.querySelector(':scope > .breadcrumb'); if (bc) bc.remove();
+  const ph = tmp.querySelector(':scope > .page-header'); if (ph) ph.remove();
+  return tmp.innerHTML;
+}
+
+function switchSub(btn, innerPageFn, postRender) {
+  btn.parentElement.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const pane = document.getElementById('subContent');
+  pane.innerHTML = stripHeader(innerPageFn());
+  if (postRender) setTimeout(postRender, 20);
+}
+
+// ============================================================
+// TOP-LEVEL WRAPPERS (with sub-tabs)
+// ============================================================
+
+function pageParticipantsWrapper() {
+  const all = STATE.members.filter(m => m.status === 'Active').length;
+  const ldrs = STATE.members.filter(m => m.isLeader && m.status === 'Active').length;
+  const alu = STATE.members.filter(m => m.status === 'Alumni').length;
+  return `
+    ${setBreadcrumb(['Home', 'Participants'])}
+    <div class="page-header">
+      <div class="page-title">Participants <small>Single unified list — filter by role below. Click a person to see their full profile (assessments, leadership, stories, actions).</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Participant</button>
+    </div>
+    <div class="sub-tabs">
+      <button class="sub-btn active" onclick="switchSub(this, pageMembers)"><i class="fas fa-male"></i> All Active <span class="count">${all}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageLeaders)"><i class="fas fa-user-tie"></i> Leaders <span class="count">${ldrs}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageAlumni)"><i class="fas fa-graduation-cap"></i> Alumni <span class="count">${alu}</span></button>
+    </div>
+    <div id="subContent">${stripHeader(pageMembers())}</div>
+  `;
+}
+
+function pageSetupWrapper() {
+  return `
+    ${setBreadcrumb(['Home', 'Program Setup'])}
+    <div class="page-header">
+      <div class="page-title">Program Setup <small>Master data — batches, groups and curriculum topics</small></div>
+    </div>
+    <div class="sub-tabs">
+      <button class="sub-btn active" onclick="switchSub(this, pageBatches)"><i class="fas fa-layer-group"></i> Batches <span class="count">${STATE.batches.length}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageGroups)"><i class="fas fa-object-group"></i> Groups <span class="count">${STATE.groups.length}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageTopics)"><i class="fas fa-book"></i> Topics / Curriculum <span class="count">${STATE.topics.length}</span></button>
+    </div>
+    <div id="subContent">${stripHeader(pageBatches())}</div>
+  `;
+}
+
+function pageActivitiesWrapper() {
+  return `
+    ${setBreadcrumb(['Home', 'Activities'])}
+    <div class="page-header">
+      <div class="page-title">Activities <small>All program interactions — sessions, sports, leadership training, refreshers, alumni meets, and campaigns</small></div>
+    </div>
+    <div class="sub-tabs">
+      <button class="sub-btn active" onclick="switchSub(this, pageEvents)"><i class="fas fa-calendar-check"></i> Sessions &amp; Attendance <span class="count">${STATE.events.length}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageLeadership)"><i class="fas fa-chess-knight"></i> Leadership Track</button>
+      <button class="sub-btn" onclick="switchSub(this, pageCampaigns)"><i class="fas fa-bullhorn"></i> Campaigns <span class="count">${STATE.campaigns.length}</span></button>
+    </div>
+    <div id="subContent">${stripHeader(pageEvents())}</div>
+  `;
+}
+
+function pageFieldLogWrapper() {
+  return `
+    ${setBreadcrumb(['Home', 'Field Log'])}
+    <div class="page-header">
+      <div class="page-title">Field Log <small>Per-member impact evidence — community actions, family engagement, qualitative stories</small></div>
+    </div>
+    <div class="sub-tabs">
+      <button class="sub-btn active" onclick="switchSub(this, pageCAP)"><i class="fas fa-hands-helping"></i> Community Actions <span class="count">${STATE.caps.length}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageFamily)"><i class="fas fa-house-user"></i> Family Engagement <span class="count">${STATE.family.length}</span></button>
+      <button class="sub-btn" onclick="switchSub(this, pageStories)"><i class="fas fa-book-open"></i> Case Stories <span class="count">${STATE.stories.length}</span></button>
+    </div>
+    <div id="subContent">${stripHeader(pageCAP())}</div>
+  `;
+}
+
+function pageReportsWrapper() {
+  return `
+    ${setBreadcrumb(['Home', 'Reports'])}
+    <div class="page-header">
+      <div class="page-title">Reports <small>Monthly KPIs + Excel exports matching donor report shapes</small></div>
+    </div>
+    <div class="sub-tabs">
+      <button class="sub-btn active" onclick="switchSub(this, pageKPI)"><i class="fas fa-chart-line"></i> Monthly Batch KPIs</button>
+      <button class="sub-btn" onclick="switchSub(this, pageExports)"><i class="fas fa-file-excel"></i> Excel Exports</button>
+    </div>
+    <div id="subContent">${stripHeader(pageKPI())}</div>
+  `;
+}
+
+// ---- Dashboard ----
+function pageDashboard() {
+  const activeMembers = STATE.members.filter(m => m.status === 'Active').length;
+  const totalLeaders = STATE.members.filter(m => m.isLeader && m.status === 'Active').length;
+  const alumni = STATE.members.filter(m => m.status === 'Alumni').length;
+  const eventsThisMonth = STATE.events.filter(e => e.date.startsWith('2026-04')).length;
+  const stories = STATE.stories.length;
+  const campaignsActive = STATE.campaigns.length;
+
+  // next 5 events by date
+  const upcoming = STATE.events.slice().sort((a,b) => a.date.localeCompare(b.date)).slice(0, 5);
+
+  return `
+    ${setBreadcrumb(['Home', 'Dashboard'])}
+    <div class="page-header">
+      <div>
+        <div class="page-title">MGJ Program Overview <small>Men with Gender Justice — real-time snapshot</small></div>
+      </div>
+      <div style="display:flex; gap: 8px;">
+        <button class="btn btn-outline"><i class="fas fa-calendar"></i> April 2026</button>
+        <button class="btn btn-outline"><i class="fas fa-filter"></i> All Centres</button>
+        <button class="btn btn-primary"><i class="fas fa-download"></i> Export</button>
+      </div>
+    </div>
+
+    <div class="workflow-banner">
+      <i class="fas fa-info-circle"></i>
+      <div><strong>Workflow:</strong> Participant Onboarding → Baseline → Monthly Sessions (Pakhwada + Sports) → Leadership Training → Midline → Campaigns → Endline → Alumni → Stories</div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="icon" style="background:var(--primary);"><i class="fas fa-male"></i></div><div><div class="label">Active Members</div><div class="value">${activeMembers}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--warning);"><i class="fas fa-user-tie"></i></div><div><div class="label">Leaders</div><div class="value">${totalLeaders}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--info);"><i class="fas fa-graduation-cap"></i></div><div><div class="label">Alumni</div><div class="value">${alumni}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--success);"><i class="fas fa-calendar-check"></i></div><div><div class="label">Events (Apr)</div><div class="value">${eventsThisMonth}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--purple);"><i class="fas fa-book-open"></i></div><div><div class="label">Case Stories</div><div class="value">${stories}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--danger);"><i class="fas fa-bullhorn"></i></div><div><div class="label">Active Campaigns</div><div class="value">${campaignsActive}</div></div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-calendar-alt"></i> Upcoming Events</div><a href="#" onclick="goto('activities'); return false;" style="font-size:12px; color:var(--primary);">View all →</a></div>
+        <table class="data">
+          <thead><tr><th>Date</th><th>Type</th><th>Topic / Title</th><th>Batch</th></tr></thead>
+          <tbody>
+            ${upcoming.map(e => `<tr><td>${e.date}</td><td><span class="badge badge-info">${e.type}</span></td><td>${esc(e.title)}</td><td>${esc(batchName(e.batchId) || '—')}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-tasks"></i> Pending Actions (PI)</div></div>
+        <div style="font-size: 13px;">
+          <div style="padding: 10px 0; border-bottom: 1px solid #f1f3f5;"><span class="pending-dot"></span>Mark attendance for <b>"Gender Roles"</b> session (12 Apr)</div>
+          <div style="padding: 10px 0; border-bottom: 1px solid #f1f3f5;"><span class="pending-dot"></span>Upload photos for <b>Cricket Tournament</b> event</div>
+          <div style="padding: 10px 0; border-bottom: 1px solid #f1f3f5;"><span class="pending-dot"></span>Conduct Baseline for <b>3 new members</b> onboarded last week</div>
+          <div style="padding: 10px 0; border-bottom: 1px solid #f1f3f5;"><span class="pending-dot"></span>Midline-1 due for <b>12 members</b> of Delhi North 2025-28</div>
+          <div style="padding: 10px 0;"><span class="pending-dot"></span>Enter March monthly KPIs for <b>Kolkata batch</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-chart-line"></i> Topic Coverage (This Quarter)</div></div>
+        <div style="padding: 10px 0;">
+          ${['Gender Awareness', 'Gender Roles', 'Unpaid Care Work', 'Masculinity', 'Violence Prevention'].map((t, i) => {
+            const pct = [88, 75, 62, 45, 30][i];
+            return `<div style="margin-bottom:12px;"><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-size:12px;">${t}</span><span style="font-size:11px; color:var(--text-light);">${pct}%</span></div><div style="height:8px; background:#f1f3f5; border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--primary);"></div></div></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-map-marker-alt"></i> Centre-wise Activity</div></div>
+        <table class="data">
+          <thead><tr><th>Centre</th><th>Active</th><th>Leaders</th><th>Events</th></tr></thead>
+          <tbody>
+            <tr><td>Delhi North</td><td>42</td><td>12</td><td>6</td></tr>
+            <tr><td>Delhi South</td><td>38</td><td>9</td><td>5</td></tr>
+            <tr><td>Kolkata</td><td>28</td><td>0</td><td>3</td></tr>
+            <tr><td>Jaipur</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td style="color:var(--text-light); font-style:italic;">Chennai (launching)</td><td>—</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Members ----
+function pageMembers() {
+  const rows = STATE.members.filter(m => m.status === 'Active').map(m => `
+    <tr>
+      <td><b>${esc(m.enroll)}</b></td>
+      <td>${esc(m.name)}${m.isLeader ? ' <span class="badge badge-leader"><i class="fas fa-star" style="font-size:9px;"></i> Leader</span>' : ''}</td>
+      <td>${m.age}</td>
+      <td>${esc(m.area)}</td>
+      <td>${esc(batchName(m.batchId))}</td>
+      <td>${esc(groupName(m.groupId))}</td>
+      <td>${esc(m.phone)}</td>
+      <td><span class="badge badge-active">${m.status}</span></td>
+      <td style="text-align:right;"><button class="btn btn-outline btn-sm">View</button></td>
+    </tr>`).join('');
+
+  return `
+    ${setBreadcrumb(['Home', 'Participants', 'All Members'])}
+    <div class="page-header">
+      <div class="page-title">Members <small>${STATE.members.filter(m => m.status === 'Active').length} active participants</small></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-outline"><i class="fas fa-file-excel"></i> Export</button>
+        <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Member</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group"><label>Search</label><input placeholder="Name, enrollment…"></div>
+        <div class="form-group"><label>Centre</label><select><option>All Centres</option>${STATE.centres.map(c => `<option>${c}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Batch</label><select><option>All Batches</option>${STATE.batches.map(b => `<option>${esc(b.name)}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Group</label><select><option>All Groups</option>${STATE.groups.map(g => `<option>${esc(g.name)}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Leader Only?</label><select><option>All</option><option>Leaders</option><option>Members</option></select></div>
+        <button class="btn btn-primary btn-sm" style="height:32px;"><i class="fas fa-search"></i> Apply</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Enrollment</th><th>Name</th><th>Age</th><th>Area</th><th>Batch</th><th>Group</th><th>Phone</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function pageLeaders() {
+  const leaders = STATE.members.filter(m => m.isLeader && m.status === 'Active');
+  return `
+    ${setBreadcrumb(['Home', 'Participants', 'Leaders'])}
+    <div class="page-header">
+      <div class="page-title">Leaders <small>${leaders.length} active leaders — parallel track with Phase-I/II, Refreshers, SAPs</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Promote Member to Leader</button>
+    </div>
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group"><label>Batch</label><select><option>All</option>${STATE.batches.map(b => `<option>${esc(b.name)}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Phase Completed</label><select><option>All</option><option>Phase I</option><option>Phase I + II</option><option>None yet</option></select></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Enrollment</th><th>Name</th><th>Area</th><th>Batch</th><th>Phase I</th><th>Phase II</th><th>Refreshers</th><th>SAPs</th><th></th></tr></thead>
+          <tbody>${leaders.map((m, i) => `
+            <tr>
+              <td><b>${esc(m.enroll)}</b></td>
+              <td>${esc(m.name)}</td>
+              <td>${esc(m.area)}</td>
+              <td>${esc(batchName(m.batchId))}</td>
+              <td>${i % 2 === 0 ? '<span class="badge badge-active">✓ Mar 2026</span>' : '<span class="badge badge-warn">Pending</span>'}</td>
+              <td>${i === 0 ? '<span class="badge badge-active">✓ Aug 2025</span>' : '<span class="badge badge-warn">Pending</span>'}</td>
+              <td>${[3, 1, 2, 2, 1, 0][i % 6]} done</td>
+              <td>${[2, 1, 3, 1, 0, 2][i % 6]} done</td>
+              <td style="text-align:right;"><button class="btn btn-outline btn-sm">View Track</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function pageAlumni() {
+  const alumni = STATE.members.filter(m => m.status === 'Alumni');
+  return `
+    ${setBreadcrumb(['Home', 'Participants', 'Alumni'])}
+    <div class="page-header">
+      <div class="page-title">Alumni <small>${alumni.length} graduated members • continued engagement via meets + leadership projects</small></div>
+      <button class="btn btn-primary"><i class="fas fa-calendar-plus"></i> Schedule Alumni Meet</button>
+    </div>
+    <div class="workflow-banner"><i class="fas fa-sync"></i> <div><strong>Auto-transition:</strong> Members of batches ending this year auto-flip to Alumni on <b>31 Mar</b>. Keep tracking stories + meet attendance even after.</div></div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Enrollment</th><th>Name</th><th>Graduated From</th><th>Age Now</th><th>Current Engagement</th><th>Last Meet</th><th></th></tr></thead>
+        <tbody>${alumni.map(m => `
+          <tr>
+            <td><b>${esc(m.enroll)}</b></td><td>${esc(m.name)}${m.isLeader ? ' <span class="badge badge-leader">Leader</span>':''}</td>
+            <td>${esc(batchName(m.batchId))}</td><td>${m.age}</td>
+            <td><span class="badge badge-alumni">${m.isLeader ? 'Trainer / Facilitator' : 'Community participant'}</span></td>
+            <td>Feb 2026</td>
+            <td style="text-align:right;"><button class="btn btn-outline btn-sm">View Profile</button></td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ---- Batches ----
+function pageBatches() {
+  return `
+    ${setBreadcrumb(['Home', 'Program Setup', 'Batches'])}
+    <div class="page-header">
+      <div class="page-title">Batches <small>3-year cohort management per Azad Centre</small></div>
+      <button class="btn btn-primary" onclick="openModal(modalNewBatch())"><i class="fas fa-plus"></i> New Batch</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Batch Name</th><th>Centre</th><th>Type</th><th>Years</th><th>Members</th><th>Leaders</th><th>Status</th><th></th></tr></thead>
+          <tbody>${STATE.batches.map(b => `
+            <tr>
+              <td><b>${esc(b.name)}</b></td><td>${esc(b.centre)}</td><td><span class="badge badge-info">${b.type}</span></td>
+              <td>${b.start} — ${b.end}</td>
+              <td>${b.members}</td><td>${b.leaders}</td>
+              <td>${b.status === 'Alumni' ? `<span class="badge badge-alumni">${b.status}</span>` : `<span class="badge badge-active">${b.status}</span>`}</td>
+              <td style="text-align:right;"><button class="btn btn-outline btn-sm" onclick="goto('groups')">Groups</button> <button class="btn btn-outline btn-sm">Edit</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+function modalNewBatch() {
+  return `
+    <h3>Create New Batch</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>Centre <span class="req">*</span></label><select>${STATE.centres.map(c => `<option>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Batch Type <span class="req">*</span></label><select><option>Mixed (Members + Leaders)</option><option>Member Only</option><option>Leadership Only</option></select></div>
+      <div class="form-group"><label>Start Year <span class="req">*</span></label><input type="number" value="2026"></div>
+      <div class="form-group"><label>End Year <span class="req">*</span></label><input type="number" value="2029"></div>
+      <div class="form-group full"><label>Batch Name</label><input placeholder="Auto: Delhi North 2026-29" readonly style="background:#f5f5f5;"></div>
+      <div class="form-group full"><label>Description (Optional)</label><textarea rows="3" placeholder="Notes about this batch…"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal(); toast('Batch created (prototype)');">Create Batch</button>
+    </div>
+  `;
+}
+
+// ---- Groups ----
+function pageGroups() {
+  return `
+    ${setBreadcrumb(['Home', 'Program Setup', 'Groups'])}
+    <div class="page-header">
+      <div class="page-title">Groups <small>Area-wise participant clusters within batches</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> New Group</button>
+    </div>
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group"><label>Batch</label><select><option>All Batches</option>${STATE.batches.map(b => `<option>${esc(b.name)}</option>`).join('')}</select></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Group Name</th><th>Batch</th><th>Area</th><th>Coordinator</th><th>Size</th><th></th></tr></thead>
+          <tbody>${STATE.groups.map(g => `
+            <tr>
+              <td><b>${esc(g.name)}</b></td>
+              <td>${esc(batchName(g.batchId))}</td>
+              <td>${esc(g.area)}</td>
+              <td>${esc(g.coordinator)}</td>
+              <td>${g.size} members</td>
+              <td style="text-align:right;"><button class="btn btn-outline btn-sm">Edit</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Topics ----
+function pageTopics() {
+  const byPhase = {};
+  STATE.topics.forEach(t => { (byPhase[t.phase] = byPhase[t.phase] || []).push(t); });
+  return `
+    ${setBreadcrumb(['Home', 'Program Setup', 'Topics / Curriculum'])}
+    <div class="page-header">
+      <div class="page-title">Topics Master <small>${STATE.topics.length} topics • flexible curriculum — PI can tag 1 primary + multiple keywords per session</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Topic</button>
+    </div>
+    ${Object.keys(byPhase).map(p => `
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-bookmark"></i> ${p} — ${byPhase[p].length} topics</div></div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Code</th><th>Topic</th><th>Keywords</th><th></th></tr></thead>
+            <tbody>${byPhase[p].map(t => `
+              <tr><td><b>${t.code}</b></td><td>${t.name}</td><td style="color:var(--text-light); font-size:12px;">${t.keywords}</td><td style="text-align:right;"><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+            `).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ---- Events & Attendance ----
+function pageEvents() {
+  const byType = {
+    'Pakhwada': { icon: 'fa-comments', color: 'var(--primary)' },
+    'Sports': { icon: 'fa-running', color: 'var(--success)' },
+    'Leadership-P1': { icon: 'fa-medal', color: 'var(--warning)' },
+    'Leadership-P2': { icon: 'fa-trophy', color: 'var(--warning)' },
+    'Refresher': { icon: 'fa-sync', color: 'var(--info)' },
+    'Campaign': { icon: 'fa-bullhorn', color: 'var(--danger)' },
+    'Alumni': { icon: 'fa-graduation-cap', color: 'var(--purple)' },
+  };
+  const rows = STATE.events.slice().sort((a,b) => b.date.localeCompare(a.date)).map(e => {
+    const styl = byType[e.type] || { icon: 'fa-circle', color: '#888' };
+    const count = Object.keys(e.attendance || {}).length;
+    const present = Object.values(e.attendance || {}).filter(v => v === 'P').length;
+    return `
+      <tr>
+        <td><span style="display:inline-flex; gap:6px; align-items:center;"><i class="fas ${styl.icon}" style="color:${styl.color}; width:14px;"></i> ${e.type}</span></td>
+        <td><b>${esc(e.title)}</b><br><small style="color:var(--text-light);">${esc(topicName(e.topicId))}</small></td>
+        <td>${e.date}</td>
+        <td>${esc(batchName(e.batchId) || 'All batches')}</td>
+        <td>${esc(groupName(e.groupId))}</td>
+        <td>${count > 0 ? `${present}/${count} present` : '<span style="color:var(--danger);">Pending</span>'}</td>
+        <td>${e.photos > 0 ? `<i class="fas fa-image"></i> ${e.photos}` : '—'}</td>
+        <td style="text-align:right;"><button class="btn btn-primary btn-sm" onclick="openAttendance(${e.id})">Attendance</button></td>
+      </tr>`;
+  }).join('');
+
+  return `
+    ${setBreadcrumb(['Home', 'Engagement', 'Events & Attendance'])}
+    <div class="page-header">
+      <div class="page-title">Events &amp; Attendance <small>All 5 interaction types unified — create, assign, mark, upload photos</small></div>
+      <button class="btn btn-primary" onclick="openModal(modalNewEvent())"><i class="fas fa-plus"></i> Create Event</button>
+    </div>
+
+    <div class="workflow-banner"><i class="fas fa-route"></i>
+      <div><strong>Event workflow:</strong> Create event (type + topic + date) → Filter roster → Record attendance in grid → Upload 2–5 photos as soft validation</div>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group"><label>Type</label><select><option>All</option><option>Pakhwada</option><option>Sports</option><option>Leadership-P1</option><option>Leadership-P2</option><option>Refresher</option><option>Campaign</option><option>Alumni</option></select></div>
+        <div class="form-group"><label>Batch</label><select><option>All</option>${STATE.batches.map(b => `<option>${esc(b.name)}</option>`).join('')}</select></div>
+        <div class="form-group"><label>From</label><input type="date" value="2026-03-01"></div>
+        <div class="form-group"><label>To</label><input type="date" value="2026-04-30"></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Type</th><th>Title / Topic</th><th>Date</th><th>Batch</th><th>Group</th><th>Attendance</th><th>Photos</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function modalNewEvent() {
+  return `
+    <h3>Create Event</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>Event Type <span class="req">*</span></label><select>
+        <option>Pakhwada (Perspective-building session)</option>
+        <option>Sports Session</option>
+        <option>Leadership Training — Phase I</option>
+        <option>Leadership Training — Phase II</option>
+        <option>Quarterly Refresher (Leaders only)</option>
+        <option>Campaign</option>
+        <option>Alumni Meet</option>
+        <option>Outreach / Community</option>
+      </select></div>
+      <div class="form-group"><label>Date <span class="req">*</span></label><input type="date" value="2026-04-25"></div>
+      <div class="form-group"><label>Batch</label><select><option>All Batches</option>${STATE.batches.map(b => `<option>${esc(b.name)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Group (optional)</label><select><option>All Groups in Batch</option>${STATE.groups.map(g => `<option>${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Participant Filter</label><select><option>Everyone in batch</option><option>Leaders only</option><option>Members only</option><option>Alumni only</option></select></div>
+      <div class="form-group"><label>Primary Topic</label><select><option value="">—</option>${STATE.topics.map(t => `<option>${esc(t.name)}</option>`).join('')}</select></div>
+      <div class="form-group full"><label>Title <span class="req">*</span></label><input placeholder="e.g. Gender Roles &amp; Socialization — Session 3"></div>
+      <div class="form-group full"><label>Session Tags (keywords — free text)</label><input placeholder="e.g. patriarchy, household division, consent"></div>
+      <div class="form-group full"><label>Description / What actually happened</label><textarea rows="3" placeholder="Flexible notes beyond the primary topic — what group actually discussed, case examples, takeaways…"></textarea></div>
+      <div class="form-group full"><label>Photos (upload after event)</label><div class="photo-upload-hint"><i class="fas fa-camera"></i> Upload 2–5 event photos as soft validation of attendance numbers. Enabled after event is created.</div></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal(); toast('Event created — now take attendance'); setTimeout(() => openAttendance(1), 300);">Create &amp; Take Attendance</button>
+    </div>
+  `;
+}
+
+function openAttendance(eventId) {
+  const event = STATE.events.find(e => e.id === eventId);
+  const roster = STATE.members.filter(m => m.status === 'Active' && (!event.batchId || m.batchId === event.batchId) && (!event.groupId || m.groupId === event.groupId));
+  const body = `
+    <h3 style="margin-bottom: 4px;">${esc(event.title)}</h3>
+    <div style="font-size:12px; color:var(--text-light); margin-bottom: 14px;">
+      <span class="badge badge-info">${event.type}</span> &middot; ${event.date} &middot; ${esc(batchName(event.batchId) || '—')} &middot; ${roster.length} participants
+    </div>
+    <div class="attendance-grid">
+      <table>
+        <thead><tr><th style="width:40px;">#</th><th>Enrollment</th><th>Name</th><th>Group</th><th style="width:220px;">Mark Attendance</th></tr></thead>
+        <tbody>
+          ${roster.map((m, i) => {
+            const a = (event.attendance || {})[m.id];
+            return `<tr>
+              <td>${i+1}</td>
+              <td>${esc(m.enroll)}</td>
+              <td><b>${esc(m.name)}</b>${m.isLeader ? ' <span class="badge badge-leader">L</span>': ''}</td>
+              <td>${esc(groupName(m.groupId))}</td>
+              <td>
+                <span class="status-chip chip-p${a === 'P' ? ' active' : ''}">P Present</span>
+                <span class="status-chip chip-a${a === 'A' ? ' active' : ''}">A Absent</span>
+                <span class="status-chip chip-l${a === 'L' ? ' active' : ''}">L Late</span>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:14px; background: #fafbfc; padding: 14px;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:8px;"><i class="fas fa-camera"></i> Event Photos — soft validation</div>
+      <div class="photo-strip"><div class="photo"></div><div class="photo"></div><div class="photo"></div><div class="photo"></div><div class="photo"></div><button class="btn btn-outline btn-sm" style="align-self:center;"><i class="fas fa-plus"></i> Add</button></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="closeModal(); toast('Attendance saved');">Save Attendance</button>
+    </div>
+  `;
+  openModal(body);
+  // Wire chip toggles (visual only)
+  setTimeout(() => {
+    document.querySelectorAll('#modal .status-chip').forEach(c => c.addEventListener('click', (e) => {
+      const row = e.target.closest('tr');
+      row.querySelectorAll('.status-chip').forEach(x => x.classList.remove('active'));
+      e.target.classList.add('active');
+    }));
+  }, 50);
+}
+
+// ---- Leadership Track ----
+function pageLeadership() {
+  const leaders = STATE.members.filter(m => m.isLeader && m.status === 'Active');
+  return `
+    ${setBreadcrumb(['Home', 'Engagement', 'Leadership Track'])}
+    <div class="page-header">
+      <div class="page-title">Leadership Track <small>Parallel advanced track — Phase I / II / Refreshers / Social Action Projects</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> New Training Batch</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this, 'ld-phase')">Phase I &amp; II Tracking</button>
+      <button class="tab-btn" onclick="switchTab(this, 'ld-refresh')">Quarterly Refreshers</button>
+      <button class="tab-btn" onclick="switchTab(this, 'ld-sap')">Social Action Projects</button>
+    </div>
+
+    <div class="tab-content active" id="ld-phase">
+      <div class="card">
+        <table class="data">
+          <thead><tr><th>Leader</th><th>Batch</th><th>Phase I</th><th>Phase II</th><th>Refreshers Done</th><th>Next Due</th></tr></thead>
+          <tbody>
+            ${leaders.map((m, i) => `
+              <tr><td><b>${esc(m.name)}</b><br><small>${esc(m.enroll)}</small></td>
+              <td>${esc(batchName(m.batchId))}</td>
+              <td>${i % 2 === 0 ? '<span class="badge badge-active">✓ 3–7 Jan 2024</span>' : '<span class="badge badge-warn">Scheduled 5–9 May 2026</span>'}</td>
+              <td>${i === 0 ? '<span class="badge badge-active">✓ 3 Aug 2025</span>' : '<span class="badge badge-warn">Upcoming</span>'}</td>
+              <td>${[3, 1, 2, 2, 1, 0][i % 6]}</td>
+              <td>Q2 Refresher — 14 May 2026</td></tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content" id="ld-refresh">
+      <div class="card">
+        <table class="data">
+          <thead><tr><th>Quarter</th><th>Session Name</th><th>Date</th><th>Leaders Attended</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>2025-26 Q1</td><td>Masculinity &amp; Gender — Refresher</td><td>14 May 2025</td><td>12 / 14</td><td>Focus on emerging issues</td></tr>
+            <tr><td>2025-26 Q2</td><td>Violence Prevention Legal Resources</td><td>8 Sep 2025</td><td>10 / 14</td><td>Guest lawyer session</td></tr>
+            <tr><td>2025-26 Q3</td><td>Self Development — Communication</td><td>14 Sep 2025</td><td>11 / 14</td><td>Role-plays</td></tr>
+            <tr><td>2025-26 Q4</td><td>UCW deep dive</td><td>25 Mar 2026</td><td>12 / 14</td><td>Household exercise</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content" id="ld-sap">
+      <div class="card">
+        <table class="data">
+          <thead><tr><th>Leader</th><th>Project Title</th><th>Type</th><th>Start</th><th>Status</th><th>Reach</th></tr></thead>
+          <tbody>
+            <tr><td>Adnan Ali</td><td>Street play — "Ghar ka kaam, sabka kaam"</td><td>Community Theatre</td><td>Mar 2026</td><td><span class="badge badge-active">Active</span></td><td>40+ reached</td></tr>
+            <tr><td>Dipesh Kumar</td><td>Peer mentoring group — Sunder Nagri</td><td>Peer Engagement</td><td>Feb 2026</td><td><span class="badge badge-active">Active</span></td><td>12 boys</td></tr>
+            <tr><td>Ayan Khan</td><td>Scheme linkage camp</td><td>Scheme Access</td><td>Apr 2026</td><td><span class="badge badge-warn">Planning</span></td><td>TBD</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Campaigns ----
+function pageCampaigns() {
+  return `
+    ${setBreadcrumb(['Home', 'Engagement', 'Campaigns'])}
+    <div class="page-header">
+      <div class="page-title">Campaigns <small>Annual flagship + external advocacy — partner orgs + location-wise reach</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Create Campaign</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="icon" style="background:var(--danger);"><i class="fas fa-bullhorn"></i></div><div><div class="label">Campaigns YTD</div><div class="value">3</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--info);"><i class="fas fa-users"></i></div><div><div class="label">Participants (YTD)</div><div class="value">413</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--primary);"><i class="fas fa-handshake"></i></div><div><div class="label">Partner Orgs</div><div class="value">6</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--success);"><i class="fas fa-image"></i></div><div><div class="label">Photos</div><div class="value">55</div></div></div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Campaign</th><th>Type</th><th>Dates</th><th>Partners</th><th>Participants</th><th>Locations</th><th>Photos</th><th></th></tr></thead>
+          <tbody>${STATE.campaigns.map(c => `
+            <tr>
+              <td><b>${esc(c.name)}</b></td>
+              <td>${c.type === 'Annual Flagship' ? '<span class="badge badge-warn">Flagship</span>' : '<span class="badge badge-info">External</span>'}</td>
+              <td>${c.start} — ${c.end}</td>
+              <td style="font-size:12px;">${c.partners.map(p => `<span class="badge badge-active" style="margin-right:3px;">${p}</span>`).join('')}</td>
+              <td>${c.participants}</td><td>${c.locations}</td>
+              <td><i class="fas fa-image"></i> ${c.photos}</td>
+              <td style="text-align:right;"><button class="btn btn-outline btn-sm">View</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Family Engagement ----
+function pageFamily() {
+  return `
+    ${setBreadcrumb(['Home', 'Engagement', 'Family Engagement'])}
+    <div class="page-header">
+      <div class="page-title">Family Engagement <small>Parent meetings, household campaigns — critical for behavior-change programs</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Log Engagement</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Date</th><th>Member</th><th>Activity</th><th>Family Participants</th><th>Outcome</th><th>Notes</th></tr></thead>
+          <tbody>${STATE.family.map(f => `
+            <tr>
+              <td>${f.date}</td>
+              <td><b>${esc(memberName(f.memberId))}</b></td>
+              <td><span class="badge badge-info">${f.activity}</span></td>
+              <td>${esc(f.participants)}</td>
+              <td>${f.outcome === 'Positive' ? '<span class="badge badge-active">Positive</span>' : '<span class="badge badge-warn">Neutral</span>'}</td>
+              <td style="font-size:12px; color:var(--text-light);">${esc(f.notes)}</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Assessments + Radar ----
+function pageAssessments() {
+  const groups = {};
+  STATE.members.forEach(m => {
+    const mine = STATE.assessments.filter(a => a.memberId === m.id);
+    if (mine.length) groups[m.id] = mine;
+  });
+  return `
+    ${setBreadcrumb(['Home', 'Impact', 'Assessments'])}
+    <div class="page-header">
+      <div class="page-title">Assessments <small>Baseline → Midline(s) → Endline — behavioral &amp; attitudinal change over 3 years</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Start New Assessment</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="icon" style="background:var(--info);"><i class="fas fa-flag"></i></div><div><div class="label">Baselines Done</div><div class="value">${STATE.assessments.filter(a => a.type === 'Baseline').length}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--warning);"><i class="fas fa-chart-bar"></i></div><div><div class="label">Midlines Done</div><div class="value">${STATE.assessments.filter(a => a.type.startsWith('Midline')).length}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--success);"><i class="fas fa-flag-checkered"></i></div><div><div class="label">Endlines Done</div><div class="value">0</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--danger);"><i class="fas fa-clock"></i></div><div><div class="label">Due Soon</div><div class="value">14</div></div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-radar"></i> Change over time — Ayan Khan (sample)</div></div>
+        <div class="radar-wrap"><canvas id="radarChart" height="260"></canvas></div>
+        <div style="text-align:center; font-size:12px; color:var(--text-light); margin-top:8px;">Scale: 0 (no change) → 5 (strong positive change). Comparing Baseline (Jun 2025) vs Midline-1 (Feb 2026).</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-list-ol"></i> Assessment Log</div></div>
+        <table class="data">
+          <thead><tr><th>Member</th><th>Type</th><th>Date</th><th>Score Avg</th><th></th></tr></thead>
+          <tbody>${STATE.assessments.map(a => {
+            const scores = Object.values(a.scores);
+            const avg = (scores.reduce((s,v) => s+v, 0) / scores.length).toFixed(1);
+            return `<tr><td><b>${esc(memberName(a.memberId))}</b></td>
+              <td><span class="badge ${a.type === 'Baseline' ? 'badge-info' : (a.type.startsWith('Midline') ? 'badge-warn' : 'badge-active')}">${a.type}</span></td>
+              <td>${a.date}</td><td><b>${avg}</b> / 5</td>
+              <td style="text-align:right;"><button class="btn btn-outline btn-sm">Details</button></td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><div class="card-title"><i class="fas fa-clipboard-list"></i> Sample Questionnaire Preview — Baseline</div></div>
+      <div style="font-size:13px;">
+        <div style="padding:10px 0; border-bottom:1px solid #f1f3f5;"><b>Q1.</b> Have you spoken against violence at home in the last 3 months? &nbsp; <select style="margin-left:8px;"><option>Yes</option><option>No</option><option>Sometimes</option></select></div>
+        <div style="padding:10px 0; border-bottom:1px solid #f1f3f5;"><b>Q2.</b> How often do you participate in household work? &nbsp; <select style="margin-left:8px;"><option>Never</option><option>Rarely</option><option>Sometimes</option><option>Often</option><option>Everyday</option></select></div>
+        <div style="padding:10px 0; border-bottom:1px solid #f1f3f5;"><b>Q3.</b> Do you believe housework is equally the responsibility of men? &nbsp; <select style="margin-left:8px;"><option>Strongly agree</option><option>Agree</option><option>Neutral</option><option>Disagree</option><option>Strongly disagree</option></select></div>
+        <div style="padding:10px 0; border-bottom:1px solid #f1f3f5;"><b>Q4.</b> Daily minutes spent on unpaid care work: &nbsp; <input type="number" placeholder="minutes" style="width:120px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+        <div style="padding:10px 0;"><b>Q5.</b> Rate your confidence to intervene in a GBV situation (1–5): &nbsp; <input type="range" min="1" max="5" value="3"></div>
+      </div>
+      <div style="font-size:12px; color:var(--text-light); margin-top:10px;"><i class="fas fa-info-circle"></i> Real questionnaires to be configured from the tool Rajeshwari will share — dynamic form engine supports Yes/No, Likert, multi-choice, numeric, range.</div>
+    </div>
+  `;
+}
+
+function renderRadar() {
+  const el = document.getElementById('radarChart');
+  if (!el || !window.Chart) return;
+  new Chart(el, {
+    type: 'radar',
+    data: {
+      labels: ['Attitudes to Violence', 'Household Work', 'Voice / Assertiveness', 'Empathy', 'Gender Equality', 'Leadership'],
+      datasets: [
+        { label: 'Baseline (Jun 2025)', data: [2,3,2,3,2,2], borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.15)', borderWidth: 2 },
+        { label: 'Midline-1 (Feb 2026)', data: [3,4,4,4,4,3], borderColor: '#e67e22', backgroundColor: 'rgba(230, 126, 34, 0.18)', borderWidth: 2 },
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 }, pointLabels: { font: { size: 11 } } } },
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+    }
+  });
+}
+
+// ---- Community Action Projects (CAP) ----
+function pageCAP() {
+  return `
+    ${setBreadcrumb(['Home', 'Impact', 'Community Actions'])}
+    <div class="page-header">
+      <div class="page-title">Community Action Log (CAP) <small>Individual-level actions — GBV, community intervention, mobilization, campaigns</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Log Action</button>
+    </div>
+    <div class="workflow-banner"><i class="fas fa-shield-alt"></i>
+      <div><strong>Confidentiality:</strong> GBV records capture only date, location, support type, nature of issue, referral — <b>no survivor personal details</b>.</div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Date</th><th>Member</th><th>Action Type</th><th>Location</th><th>Description</th><th>Outcome</th><th>Photos</th></tr></thead>
+          <tbody>${STATE.caps.map(c => `
+            <tr>
+              <td>${c.date}</td>
+              <td><b>${esc(memberName(c.memberId))}</b></td>
+              <td><span class="badge ${c.type === 'GBV Support' ? 'badge-warn' : 'badge-info'}">${c.type}</span> ${c.confidential ? '<i class="fas fa-lock" style="color:var(--danger); font-size:10px;" title="Confidential"></i>' : ''}</td>
+              <td>${esc(c.location)}</td>
+              <td style="font-size:12px; color:var(--text-light); max-width:300px;">${esc(c.description)}</td>
+              <td style="font-size:12px;"><b>${esc(c.outcome)}</b></td>
+              <td><i class="fas fa-image"></i> ${c.photos}</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Case Stories ----
+function pageStories() {
+  return `
+    ${setBreadcrumb(['Home', 'Impact', 'Case Stories'])}
+    <div class="page-header">
+      <div class="page-title">Case Stories <small>Qualitative narratives — tagged to individuals (mostly leaders), replaces scattered drives</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Story</button>
+    </div>
+    <div class="filter-bar">
+      <div class="form-group"><label>Type of change</label><select><option>All</option><option>Behavioral change</option><option>Leadership action</option><option>Community impact</option></select></div>
+      <div class="form-group"><label>Batch</label><select><option>All</option>${STATE.batches.map(b => `<option>${esc(b.name)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Search narrative</label><input placeholder="Keyword search…"></div>
+    </div>
+    ${STATE.stories.map(s => {
+      const m = STATE.members.find(x => x.id === s.memberId);
+      return `
+        <div class="story-card">
+          <div style="display:flex; justify-content:space-between; gap:16px;">
+            <div style="flex:1;">
+              <h4>${esc(s.title)}</h4>
+              <div class="meta">
+                <i class="fas fa-user"></i> ${esc(m.name)} (${esc(m.enroll)}) &middot;
+                <i class="fas fa-calendar"></i> ${s.date} &middot;
+                <span class="badge badge-info">${s.change}</span>
+              </div>
+              <div class="excerpt">${esc(s.excerpt)}</div>
+              <div class="photo-strip"><div class="photo"></div><div class="photo"></div><div class="photo"></div></div>
+            </div>
+            <div><button class="btn btn-outline btn-sm">Full story →</button></div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+// ---- Monthly KPIs ----
+function pageKPI() {
+  return `
+    ${setBreadcrumb(['Home', 'Reports', 'Monthly Batch KPIs'])}
+    <div class="page-header">
+      <div class="page-title">Monthly Batch KPIs <small>One row per batch per month — auto-filled from events, manual for outcome numbers</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> New Monthly Entry</button>
+    </div>
+    <div class="workflow-banner"><i class="fas fa-magic"></i>
+      <div><strong>Auto-fill:</strong> Pakhwada/Sports/Training counts come from Events module. PI only enters outcome KPIs (HH visits, WWW mobilization, GBV referrals, schemes, etc.)</div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr>
+            <th>Month</th><th>Batch</th>
+            <th>Pakh.</th><th>Sports</th><th>Leader Trn.</th>
+            <th>HH Visits</th><th>WWW Mobilized</th><th>WWW Enrolled</th>
+            <th>GBV</th><th>Aadhaar</th><th>Schemes</th>
+            <th>Camp.</th><th>Orgs</th>
+          </tr></thead>
+          <tbody>${STATE.kpi.map(k => `
+            <tr>
+              <td><b>${k.month}</b></td>
+              <td>${esc(batchName(k.batchId))}</td>
+              <td>${k.pakhwada}</td><td>${k.sports}</td><td>${k.leader_training}</td>
+              <td>${k.hh_visits}</td><td>${k.www_mobilized}</td><td>${k.www_enrolled}</td>
+              <td>${k.gbv}</td><td>${k.aadhaar}</td><td>${k.schemes}</td>
+              <td>${k.campaigns}</td><td>${k.orgs_engaged}</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><div class="card-title"><i class="fas fa-pencil-alt"></i> Enter April 2026 KPIs — Delhi North 2025-28</div></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Pakhwada Sessions (auto)</label><input value="2" readonly style="background:#f5f5f5;"></div>
+        <div class="form-group"><label>Sports Sessions (auto)</label><input value="1" readonly style="background:#f5f5f5;"></div>
+        <div class="form-group"><label>Leader Trainings (auto)</label><input value="0" readonly style="background:#f5f5f5;"></div>
+        <div class="form-group"><label>Household Visits</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>WWW Women Mobilized</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>WWW Enrolled</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>Surveys Supported</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>GBV Interventions</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>Aadhaar / PAN Linkages</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>Pension / Scheme Linkages</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>Campaigns Participated</label><input type="number" placeholder="0"></div>
+        <div class="form-group"><label>Partner Orgs Engaged</label><input type="number" placeholder="0"></div>
+        <div class="form-group full"><label>Key Activities / Narrative</label><textarea rows="3" placeholder="What went well, challenges, follow-ups…"></textarea></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline">Save Draft</button>
+        <button class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  `;
+}
+
+function pageExports() {
+  return `
+    ${setBreadcrumb(['Home', 'Reports', 'Exports'])}
+    <div class="page-header"><div class="page-title">Exports <small>Download reports in the shape of your existing Excel sheets — donor-friendly</small></div></div>
+    <div class="grid-3">
+      ${[
+        { t: 'Profile Export', d: 'Member profiles — batch-wise, matches "Profile" sheet', icon: 'fa-user' },
+        { t: 'Pakhwada (INPUT) Export', d: 'Attendance grid, quarter-wise, matches current sheet', icon: 'fa-table' },
+        { t: 'Pakhwada (SPORTS) Export', d: 'Sports attendance grid, quarter-wise', icon: 'fa-running' },
+        { t: 'Overall Activities', d: 'Monthly activity counts per batch', icon: 'fa-chart-bar' },
+        { t: 'Leaders Profile', d: 'Leaders with training + SAP status', icon: 'fa-user-tie' },
+        { t: 'Leaders Log', d: '6-monthly leader log — care work + actions', icon: 'fa-book' },
+        { t: 'Alumni Tracking', d: 'Alumni engagement + stories', icon: 'fa-graduation-cap' },
+        { t: 'Monthly KPI Report', d: 'Consolidated KPI by batch / month', icon: 'fa-chart-line' },
+        { t: 'Case Stories Book', d: 'Curated stories for donor reports', icon: 'fa-book-open' },
+      ].map(e => `
+        <div class="card" style="text-align:center; cursor:pointer;">
+          <i class="fas ${e.icon}" style="font-size:32px; color:var(--primary); margin-bottom:12px;"></i>
+          <div style="font-weight:600; color:var(--secondary);">${e.t}</div>
+          <div style="font-size:12px; color:var(--text-light); margin:8px 0 14px;">${e.d}</div>
+          <button class="btn btn-primary btn-sm" style="width:100%;"><i class="fas fa-download"></i> Download .xlsx</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ---- Utilities ----
+function openModal(html) { $('modalBody').innerHTML = html; $('modal').classList.add('active'); }
+function closeModal() { $('modal').classList.remove('active'); }
+function goto(page) { const el = document.querySelector('.nav-item[data-page="' + page + '"]'); if (el) el.click(); }
+function switchTab(btn, tabId) {
+  const tabs = btn.parentElement;
+  tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const scope = btn.parentElement.parentElement;
+  scope.querySelectorAll(':scope > .tab-content').forEach(t => t.classList.remove('active'));
+  const c = document.getElementById(tabId);
+  if (c) c.classList.add('active');
+}
+function toast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed; top:20px; right:20px; background:#10b981; color:#fff; padding:10px 18px; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.15); z-index:200; font-size:13px; font-weight:500;';
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2000);
+  setTimeout(() => t.remove(), 2400);
+}
+
+// Initial render
+render('dashboard');
+</script>
+
+</body>
+</html>

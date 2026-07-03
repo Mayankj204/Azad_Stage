@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azad MIS – System Schema & Workflow</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+  :root {
+    --primary: #732269;
+    --primary-light: #9b4d8b;
+    --primary-dark: #5a1a52;
+    --accent: #e8a838;
+    --bg: #f7f3f6;
+    --card-bg: #fff;
+    --text: #333;
+    --text-light: #666;
+    --border: #e0d4de;
+    --green: #27ae60;
+    --blue: #2980b9;
+    --orange: #e67e22;
+    --red: #c0392b;
+    --teal: #16a085;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+    color: #fff; padding: 30px 40px; text-align: center;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  .header p { font-size: 15px; opacity: 0.85; }
+  .header .logo-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 10px; }
+  .header .logo-row img { height: 44px; }
+
+  /* ===== SECTION ===== */
+  .section { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+  .section-title {
+    font-size: 22px; font-weight: 700; color: var(--primary);
+    border-bottom: 3px solid var(--primary); display: inline-block;
+    padding-bottom: 6px; margin-bottom: 24px;
+  }
+  .section-subtitle { font-size: 14px; color: var(--text-light); margin-top: -18px; margin-bottom: 24px; }
+
+  /* ===== USER HIERARCHY ===== */
+  .hierarchy-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+  .hierarchy-level {
+    display: flex; align-items: center; gap: 16px; width: 100%;
+    max-width: 900px; position: relative;
+  }
+  .hierarchy-level .level-badge {
+    flex: 0 0 40px; height: 40px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; color: #fff;
+    font-weight: 700; font-size: 16px; z-index: 2;
+  }
+
+  .hierarchy-card {
+    flex: 1; background: var(--card-bg); border-radius: 12px;
+    padding: 18px 22px; box-shadow: 0 2px 12px rgba(115,34,105,0.08);
+    border-left: 5px solid; position: relative; transition: transform 0.2s;
+  }
+  .hierarchy-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(115,34,105,0.12); }
+  .hierarchy-card h3 { font-size: 17px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .hierarchy-card h3 i { font-size: 18px; }
+  .hierarchy-card .scope-tag {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 10px; border-radius: 20px; color: #fff; margin-bottom: 8px;
+  }
+  .hierarchy-card .desc { font-size: 13px; color: var(--text-light); line-height: 1.5; }
+  .hierarchy-card .access-list {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+  }
+  .hierarchy-card .access-chip {
+    font-size: 11px; padding: 3px 10px; border-radius: 14px;
+    background: #f0e6ef; color: var(--primary); font-weight: 500;
+  }
+  .hierarchy-card .access-chip.denied {
+    background: #fde8e8; color: var(--red); text-decoration: line-through;
+  }
+
+  /* connector line */
+  .connector { width: 3px; height: 24px; background: var(--border); margin-left: 19px; }
+
+  /* level colors */
+  .level-super .level-badge, .level-super .scope-tag { background: var(--primary-dark); }
+  .level-super .hierarchy-card { border-left-color: var(--primary-dark); }
+
+  .level-admin .level-badge, .level-admin .scope-tag { background: var(--primary); }
+  .level-admin .hierarchy-card { border-left-color: var(--primary); }
+
+  .level-state .level-badge, .level-state .scope-tag { background: var(--blue); }
+  .level-state .hierarchy-card { border-left-color: var(--blue); }
+
+  .level-district .level-badge, .level-district .scope-tag { background: var(--teal); }
+  .level-district .hierarchy-card { border-left-color: var(--teal); }
+
+  .level-pi .level-badge, .level-pi .scope-tag { background: var(--orange); }
+  .level-pi .hierarchy-card { border-left-color: var(--orange); }
+
+  /* ===== ACCESS MATRIX TABLE ===== */
+  .matrix-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  .matrix-table th {
+    background: var(--primary); color: #fff; padding: 10px 12px;
+    text-align: center; font-weight: 600; font-size: 12px;
+  }
+  .matrix-table th:first-child { text-align: left; min-width: 200px; }
+  .matrix-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); text-align: center; }
+  .matrix-table td:first-child { text-align: left; font-weight: 500; }
+  .matrix-table tr:nth-child(even) { background: #faf5f9; }
+  .matrix-table tr:hover { background: #f0e6ef; }
+  .check { color: var(--green); font-weight: 700; font-size: 16px; }
+  .cross { color: #ccc; font-size: 14px; }
+  .partial { color: var(--orange); font-weight: 700; font-size: 14px; }
+
+  /* ===== FLOW DIAGRAM ===== */
+  .flow-container {
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+    margin-top: 20px;
+  }
+  .flow-step {
+    display: flex; align-items: center; gap: 16px; width: 100%;
+    max-width: 800px;
+  }
+  .flow-step .step-num {
+    flex: 0 0 48px; height: 48px; border-radius: 50%;
+    background: var(--primary); color: #fff; display: flex;
+    align-items: center; justify-content: center; font-weight: 700;
+    font-size: 18px; z-index: 2;
+  }
+  .flow-card {
+    flex: 1; background: var(--card-bg); border-radius: 12px;
+    padding: 18px 22px; box-shadow: 0 2px 12px rgba(115,34,105,0.08);
+    border-left: 5px solid var(--primary);
+  }
+  .flow-card h4 { font-size: 15px; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .flow-card p { font-size: 13px; color: var(--text-light); line-height: 1.5; }
+  .flow-card .role-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .flow-card .role-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 14px;
+    font-weight: 600; color: #fff;
+  }
+  .flow-card .note {
+    margin-top: 10px; padding: 8px 12px; background: #fff8e1;
+    border-left: 3px solid var(--accent); border-radius: 4px;
+    font-size: 12px; color: #7a6520;
+  }
+  .flow-card .note i { margin-right: 4px; }
+
+  .flow-arrow {
+    display: flex; align-items: center; justify-content: center;
+    height: 36px; margin-left: 22px;
+  }
+  .flow-arrow .arrow-line {
+    width: 3px; height: 100%; background: var(--border); position: relative;
+  }
+  .flow-arrow .arrow-line::after {
+    content: ''; position: absolute; bottom: 0; left: -5px;
+    border-left: 7px solid transparent; border-right: 7px solid transparent;
+    border-top: 10px solid var(--primary);
+  }
+
+  /* decision diamond */
+  .flow-step.decision .step-num {
+    border-radius: 4px; transform: rotate(45deg);
+    background: var(--accent);
+  }
+  .flow-step.decision .step-num span { transform: rotate(-45deg); display: block; }
+  .flow-step.decision .flow-card { border-left-color: var(--accent); }
+
+  /* ===== SCOPE DIAGRAM ===== */
+  .scope-diagram {
+    display: flex; justify-content: center; gap: 0; margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .scope-box {
+    border: 2px solid; border-radius: 16px; padding: 20px;
+    position: relative; text-align: center; min-width: 260px;
+  }
+  .scope-box .scope-label {
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: var(--bg); padding: 0 10px; font-size: 12px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .scope-national { border-color: var(--primary-dark); margin: 0 auto; width: 100%; max-width: 820px; }
+  .scope-national .scope-label { color: var(--primary-dark); }
+
+  .scope-state-row { display: flex; gap: 20px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .scope-state {
+    border-color: var(--blue); flex: 1; min-width: 220px; max-width: 380px;
+    padding: 18px 14px;
+  }
+  .scope-state .scope-label { color: var(--blue); }
+
+  .scope-district-row { display: flex; gap: 12px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  .scope-district {
+    border-color: var(--teal); flex: 1; min-width: 140px; max-width: 170px;
+    padding: 12px 8px; font-size: 12px;
+  }
+  .scope-district .scope-label { color: var(--teal); font-size: 10px; }
+
+  .role-icon-row {
+    display: flex; justify-content: center; gap: 10px; margin-top: 10px;
+  }
+  .role-icon-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 10px; color: var(--text-light);
+  }
+  .role-icon-item i { font-size: 20px; }
+  .role-icon-item.super i { color: var(--primary-dark); }
+  .role-icon-item.admin i { color: var(--primary); }
+  .role-icon-item.state i { color: var(--blue); }
+  .role-icon-item.district i { color: var(--teal); }
+  .role-icon-item.pi i { color: var(--orange); }
+
+  /* ===== BATCH LIFECYCLE ===== */
+  .lifecycle-row {
+    display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  .lifecycle-card {
+    background: var(--card-bg); border-radius: 12px; padding: 20px;
+    box-shadow: 0 2px 12px rgba(115,34,105,0.08); text-align: center;
+    flex: 1; min-width: 200px; max-width: 260px; border-top: 4px solid;
+    position: relative;
+  }
+  .lifecycle-card .lc-icon {
+    width: 50px; height: 50px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; margin: 0 auto 12px;
+    font-size: 22px; color: #fff;
+  }
+  .lifecycle-card h4 { font-size: 14px; margin-bottom: 6px; }
+  .lifecycle-card p { font-size: 12px; color: var(--text-light); line-height: 1.4; }
+  .lifecycle-card.lc-create { border-top-color: var(--primary); }
+  .lifecycle-card.lc-create .lc-icon { background: var(--primary); }
+  .lifecycle-card.lc-add { border-top-color: var(--blue); }
+  .lifecycle-card.lc-add .lc-icon { background: var(--blue); }
+  .lifecycle-card.lc-alloc { border-top-color: var(--teal); }
+  .lifecycle-card.lc-alloc .lc-icon { background: var(--teal); }
+  .lifecycle-card.lc-assess { border-top-color: var(--orange); }
+  .lifecycle-card.lc-assess .lc-icon { background: var(--orange); }
+
+  .lc-arrow {
+    display: flex; align-items: center; font-size: 24px; color: var(--border);
+    flex: 0 0 30px; justify-content: center;
+  }
+
+  /* ===== PRINT STYLES ===== */
+  .print-btn {
+    position: fixed; bottom: 24px; right: 24px; background: var(--primary);
+    color: #fff; border: none; padding: 12px 20px; border-radius: 30px;
+    font-size: 14px; cursor: pointer; box-shadow: 0 4px 16px rgba(115,34,105,0.3);
+    z-index: 100; display: flex; align-items: center; gap: 8px;
+  }
+  .print-btn:hover { background: var(--primary-dark); }
+
+  @media print {
+    .print-btn { display: none; }
+    body { background: #fff; }
+    .section { page-break-inside: avoid; }
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .header h1 { font-size: 22px; }
+    .scope-state-row { flex-direction: column; align-items: center; }
+    .lifecycle-row { flex-direction: column; align-items: center; }
+    .lc-arrow { transform: rotate(90deg); flex: 0 0 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-row">
+    <i class="fas fa-sitemap" style="font-size:36px;"></i>
+  </div>
+  <h1>Azad Foundation – MIS System Schema</h1>
+  <p>User Role Hierarchy, Access Permissions & Batch Management Workflow</p>
+</div>
+
+<!-- ========== SECTION 1: USER ROLE HIERARCHY ========== -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-users-cog"></i> 1. User Role Hierarchy</div>
+  <p class="section-subtitle">Five-level access structure from national to district operations</p>
+
+  <div class="hierarchy-wrapper">
+
+    <!-- Level 1: Super Admin -->
+    <div class="hierarchy-level level-super">
+      <div class="level-badge">1</div>
+      <div class="hierarchy-card">
+        <h3><i class="fas fa-crown"></i> Super Admin</h3>
+        <span class="scope-tag">National Level – Full Access</span>
+        <p class="desc">Complete access to the system including all modules and master settings. Highest level of control — can manage every aspect of the platform.</p>
+        <div class="access-list">
+          <span class="access-chip">Dashboard</span>
+          <span class="access-chip">FLP Management</span>
+          <span class="access-chip">Assessments</span>
+          <span class="access-chip">Training</span>
+          <span class="access-chip">Batch Management</span>
+          <span class="access-chip">Surveys</span>
+          <span class="access-chip">Reports</span>
+          <span class="access-chip">User Management</span>
+          <span class="access-chip" style="background:#732269;color:#fff;">⚙ Master Settings</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Level 2: Admin -->
+    <div class="hierarchy-level level-admin">
+      <div class="level-badge">2</div>
+      <div class="hierarchy-card">
+        <h3><i class="fas fa-user-shield"></i> Admin</h3>
+        <span class="scope-tag">National Level – Operational Access</span>
+        <p class="desc">Access to all operational features of the system, but does not have access to the master settings.</p>
+        <div class="access-list">
+          <span class="access-chip">Dashboard</span>
+          <span class="access-chip">FLP Management</span>
+          <span class="access-chip">Assessments</span>
+          <span class="access-chip">Training</span>
+          <span class="access-chip">Batch Management</span>
+          <span class="access-chip">Surveys</span>
+          <span class="access-chip">Reports</span>
+          <span class="access-chip">User Management</span>
+          <span class="access-chip denied">⚙ Master Settings</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Level 3: State Lead -->
+    <div class="hierarchy-level level-state">
+      <div class="level-badge">3</div>
+      <div class="hierarchy-card">
+        <h3><i class="fas fa-map-marked-alt"></i> State Lead</h3>
+        <span class="scope-tag">State Level</span>
+        <p class="desc">Access limited to state-level operations. Manages activities within their assigned state, oversees districts and centres under their jurisdiction.</p>
+        <div class="access-list">
+          <span class="access-chip">State Dashboard</span>
+          <span class="access-chip">FLP Management (State)</span>
+          <span class="access-chip">Assessments (State)</span>
+          <span class="access-chip">Training (State)</span>
+          <span class="access-chip">Batch Management (State)</span>
+          <span class="access-chip">Reports (State)</span>
+          <span class="access-chip denied">User Management</span>
+          <span class="access-chip denied">⚙ Master Settings</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Level 4 & 5 side by side -->
+    <div style="display:flex; gap:16px; width:100%; max-width:900px; flex-wrap:wrap;">
+
+      <!-- Level 4: District Lead -->
+      <div class="hierarchy-level level-district" style="flex:1; min-width:380px;">
+        <div class="level-badge">4</div>
+        <div class="hierarchy-card">
+          <h3><i class="fas fa-building"></i> District Lead</h3>
+          <span class="scope-tag">District Level</span>
+          <p class="desc">Manages operations at the district level. Oversees district-specific activities, FLPs, and users. Primary responsibility for batch creation and FLP allocation.</p>
+          <div class="access-list">
+            <span class="access-chip">District Dashboard</span>
+            <span class="access-chip">FLP Management (District)</span>
+            <span class="access-chip">Batch Management</span>
+            <span class="access-chip">Assessments (District)</span>
+            <span class="access-chip">Reports (District)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level 5: PI -->
+      <div class="hierarchy-level level-pi" style="flex:1; min-width:380px;">
+        <div class="level-badge">5</div>
+        <div class="hierarchy-card">
+          <h3><i class="fas fa-clipboard-check"></i> Project Invigilator (PI)</h3>
+          <span class="scope-tag">District Level</span>
+          <p class="desc">Operates at the district level. Responsible for monitoring and managing project-related activities, field-level data collection, and FLP supervision.</p>
+          <div class="access-list">
+            <span class="access-chip">District Dashboard</span>
+            <span class="access-chip">FLP Management (District)</span>
+            <span class="access-chip">Batch Management</span>
+            <span class="access-chip">Assessments (District)</span>
+            <span class="access-chip">Reports (District)</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========== SECTION 2: SCOPE DIAGRAM ========== -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-layer-group"></i> 2. Operational Scope</div>
+  <p class="section-subtitle">Visual representation of data access boundaries per role</p>
+
+  <div class="scope-box scope-national">
+    <span class="scope-label">National Level</span>
+    <div class="role-icon-row" style="margin-bottom:14px;">
+      <div class="role-icon-item super"><i class="fas fa-crown"></i><span>Super Admin</span></div>
+      <div class="role-icon-item admin"><i class="fas fa-user-shield"></i><span>Admin</span></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Full visibility across all states, districts, centres, and FLPs</div>
+
+    <div class="scope-state-row">
+      <!-- State 1 -->
+      <div class="scope-box scope-state">
+        <span class="scope-label">State: Delhi</span>
+        <div class="role-icon-row" style="margin-top:8px;">
+          <div class="role-icon-item state"><i class="fas fa-map-marked-alt"></i><span>State Lead</span></div>
+        </div>
+        <div class="scope-district-row">
+          <div class="scope-box scope-district">
+            <span class="scope-label">South Delhi</span>
+            <div class="role-icon-row">
+              <div class="role-icon-item district"><i class="fas fa-building"></i><span>DL</span></div>
+              <div class="role-icon-item pi"><i class="fas fa-clipboard-check"></i><span>PI</span></div>
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--text-light);">
+              <i class="fas fa-users" style="color:var(--primary);"></i> FLPs &nbsp;
+              <i class="fas fa-layer-group" style="color:var(--teal);"></i> Batches
+            </div>
+          </div>
+          <div class="scope-box scope-district">
+            <span class="scope-label">North Delhi</span>
+            <div class="role-icon-row">
+              <div class="role-icon-item district"><i class="fas fa-building"></i><span>DL</span></div>
+              <div class="role-icon-item pi"><i class="fas fa-clipboard-check"></i><span>PI</span></div>
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--text-light);">
+              <i class="fas fa-users" style="color:var(--primary);"></i> FLPs &nbsp;
+              <i class="fas fa-layer-group" style="color:var(--teal);"></i> Batches
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State 2 -->
+      <div class="scope-box scope-state">
+        <span class="scope-label">State: West Bengal</span>
+        <div class="role-icon-row" style="margin-top:8px;">
+          <div class="role-icon-item state"><i class="fas fa-map-marked-alt"></i><span>State Lead</span></div>
+        </div>
+        <div class="scope-district-row">
+          <div class="scope-box scope-district">
+            <span class="scope-label">Kolkata</span>
+            <div class="role-icon-row">
+              <div class="role-icon-item district"><i class="fas fa-building"></i><span>DL</span></div>
+              <div class="role-icon-item pi"><i class="fas fa-clipboard-check"></i><span>PI</span></div>
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--text-light);">
+              <i class="fas fa-users" style="color:var(--primary);"></i> FLPs &nbsp;
+              <i class="fas fa-layer-group" style="color:var(--teal);"></i> Batches
+            </div>
+          </div>
+          <div class="scope-box scope-district">
+            <span class="scope-label">Howrah</span>
+            <div class="role-icon-row">
+              <div class="role-icon-item district"><i class="fas fa-building"></i><span>DL</span></div>
+              <div class="role-icon-item pi"><i class="fas fa-clipboard-check"></i><span>PI</span></div>
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--text-light);">
+              <i class="fas fa-users" style="color:var(--primary);"></i> FLPs &nbsp;
+              <i class="fas fa-layer-group" style="color:var(--teal);"></i> Batches
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SECTION 3: ACCESS MATRIX ========== -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-key"></i> 3. Module Access Matrix</div>
+  <p class="section-subtitle">Detailed permission mapping for each role across all system modules</p>
+
+  <div style="overflow-x:auto;">
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th>Module / Feature</th>
+          <th><i class="fas fa-crown"></i> Super Admin</th>
+          <th><i class="fas fa-user-shield"></i> Admin</th>
+          <th><i class="fas fa-map-marked-alt"></i> State Lead</th>
+          <th><i class="fas fa-building"></i> District Lead</th>
+          <th><i class="fas fa-clipboard-check"></i> PI</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><i class="fas fa-tachometer-alt" style="color:var(--primary);"></i> Dashboard (National)</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">—</span></td>
+          <td><span class="cross">—</span></td>
+          <td><span class="cross">—</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-tachometer-alt" style="color:var(--blue);"></i> Dashboard (State)</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">—</span></td>
+          <td><span class="cross">—</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-tachometer-alt" style="color:var(--teal);"></i> Dashboard (District)</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-users" style="color:var(--primary);"></i> FLP Registration</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-list" style="color:var(--primary);"></i> FLP List & View</td>
+          <td><span class="check">✓</span> All</td>
+          <td><span class="check">✓</span> All</td>
+          <td><span class="partial">◐</span> State only</td>
+          <td><span class="partial">◐</span> District only</td>
+          <td><span class="partial">◐</span> District only</td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-layer-group" style="color:var(--teal);"></i> Batch Creation</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-user-plus" style="color:var(--teal);"></i> FLP → Batch Allocation</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-file-alt" style="color:var(--orange);"></i> Pre-Training Assessment</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-file-alt" style="color:var(--green);"></i> Post-Training Assessment</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-chalkboard-teacher" style="color:var(--blue);"></i> Training Management</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="partial">◐</span> State only</td>
+          <td><span class="partial">◐</span> District only</td>
+          <td><span class="partial">◐</span> District only</td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-poll" style="color:var(--blue);"></i> Survey Management</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="partial">◐</span> State only</td>
+          <td><span class="partial">◐</span> District only</td>
+          <td><span class="partial">◐</span> District only</td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-chart-bar" style="color:var(--primary);"></i> Reports & Analytics</td>
+          <td><span class="check">✓</span> All</td>
+          <td><span class="check">✓</span> All</td>
+          <td><span class="partial">◐</span> State only</td>
+          <td><span class="partial">◐</span> District only</td>
+          <td><span class="partial">◐</span> District only</td>
+        </tr>
+        <tr>
+          <td><i class="fas fa-user-cog" style="color:var(--primary);"></i> User Management</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">—</span></td>
+          <td><span class="cross">—</span></td>
+          <td><span class="cross">—</span></td>
+        </tr>
+        <tr style="background:#faf0f8;">
+          <td><strong><i class="fas fa-cogs" style="color:var(--primary-dark);"></i> Master Settings</strong></td>
+          <td><span class="check" style="font-size:18px;">✓</span></td>
+          <td><span class="cross" style="color:var(--red);">✗</span></td>
+          <td><span class="cross" style="color:var(--red);">✗</span></td>
+          <td><span class="cross" style="color:var(--red);">✗</span></td>
+          <td><span class="cross" style="color:var(--red);">✗</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:10px;font-size:12px;color:var(--text-light);">
+    <span class="check">✓</span> = Full Access &nbsp;&nbsp;
+    <span class="partial">◐</span> = Scoped (own state/district only) &nbsp;&nbsp;
+    <span class="cross" style="color:var(--red);">✗</span> = No Access &nbsp;&nbsp;
+    <span class="cross">—</span> = Not Applicable
+  </div>
+</div>
+
+<!-- ========== SECTION 4: BATCH MANAGEMENT FLOW ========== -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-project-diagram"></i> 4. Batch Management Workflow</div>
+  <p class="section-subtitle">Step-by-step flow from batch creation to FLP allocation</p>
+
+  <div class="flow-container">
+
+    <!-- Step 1 -->
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="flow-card">
+        <h4><i class="fas fa-plus-circle"></i> Create Batch</h4>
+        <p>A new batch is created within a state. Each batch has a unique state-wise batch code and is assigned to the current academic year. Only one active batch per state at a time.</p>
+        <div class="role-tags">
+          <span class="role-tag" style="background:var(--primary-dark);">Super Admin</span>
+          <span class="role-tag" style="background:var(--primary);">Admin</span>
+          <span class="role-tag" style="background:var(--blue);">State Lead</span>
+          <span class="role-tag" style="background:var(--teal);">District Lead ★</span>
+          <span class="role-tag" style="background:var(--orange);">PI ★</span>
+        </div>
+        <div class="note"><i class="fas fa-star"></i> District Leads and PIs are primarily responsible for batch creation in day-to-day operations.</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div></div>
+
+    <!-- Step 2 -->
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="flow-card">
+        <h4><i class="fas fa-user-plus"></i> Register FLPs</h4>
+        <p>New FLPs (Field Level Persons) are registered into the system with their personal, demographic, and education details.</p>
+        <div class="note"><i class="fas fa-info-circle"></i> The <strong>Batch field is NOT mandatory</strong> during FLP registration. An FLP can be added without being assigned to a batch.</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div></div>
+
+    <!-- Step 3 (Decision) -->
+    <div class="flow-step decision">
+      <div class="step-num"><span>?</span></div>
+      <div class="flow-card">
+        <h4><i class="fas fa-code-branch"></i> Batch Assignment Decision</h4>
+        <p>At the time of FLP registration, the user decides whether to assign the FLP to a batch immediately or leave it unassigned for later allocation.</p>
+        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;padding:10px;background:#e8f5e9;border-radius:8px;text-align:center;">
+            <div style="font-weight:600;color:var(--green);font-size:13px;"><i class="fas fa-check-circle"></i> Assign Now</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select batch in FLP form → auto-linked</div>
+          </div>
+          <div style="flex:1;min-width:180px;padding:10px;background:#fff3e0;border-radius:8px;text-align:center;">
+            <div style="font-weight:600;color:var(--orange);font-size:13px;"><i class="fas fa-clock"></i> Assign Later</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Leave blank → allocate via Batch Management</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div></div>
+
+    <!-- Step 4 -->
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="flow-card">
+        <h4><i class="fas fa-tasks"></i> Batch Allocation (Batch Management Section)</h4>
+        <p>District Leads or PIs access the Batch Management section to allocate unassigned FLPs into the appropriate batches. Multiple FLPs can be selected and assigned to a batch at once.</p>
+        <div class="role-tags">
+          <span class="role-tag" style="background:var(--teal);">District Lead ★</span>
+          <span class="role-tag" style="background:var(--orange);">PI ★</span>
+          <span class="role-tag" style="background:var(--blue);">State Lead</span>
+          <span class="role-tag" style="background:var(--primary);">Admin</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div></div>
+
+    <!-- Step 5 -->
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="flow-card">
+        <h4><i class="fas fa-file-signature"></i> Training & Assessment</h4>
+        <p>Once FLPs are assigned to batches, they proceed through Pre-Training Assessment → Training → Post-Training Assessment cycle. Batch grouping enables efficient tracking and reporting.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== SECTION 5: BATCH LIFECYCLE ========== -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-recycle"></i> 5. Batch Lifecycle</div>
+  <p class="section-subtitle">Annual batch cycle with automatic state-wise management</p>
+
+  <div class="lifecycle-row">
+    <div class="lifecycle-card lc-create">
+      <div class="lc-icon"><i class="fas fa-plus"></i></div>
+      <h4>Create Batch</h4>
+      <p>New batch created with unique state-wise code. One active batch per state at a time. Batch code format: <strong>{State}/{Year}/Batch {N}</strong></p>
+    </div>
+    <div class="lc-arrow"><i class="fas fa-arrow-right"></i></div>
+    <div class="lifecycle-card lc-add">
+      <div class="lc-icon"><i class="fas fa-user-plus"></i></div>
+      <h4>Add & Allocate FLPs</h4>
+      <p>FLPs are registered and allocated to the active batch either during registration or later via Batch Management.</p>
+    </div>
+    <div class="lc-arrow"><i class="fas fa-arrow-right"></i></div>
+    <div class="lifecycle-card lc-alloc">
+      <div class="lc-icon"><i class="fas fa-graduation-cap"></i></div>
+      <h4>Training Cycle</h4>
+      <p>Batch undergoes Pre-Assessment → Training → Post-Assessment cycle. Progress tracked per batch.</p>
+    </div>
+    <div class="lc-arrow"><i class="fas fa-arrow-right"></i></div>
+    <div class="lifecycle-card lc-assess">
+      <div class="lc-icon"><i class="fas fa-sync-alt"></i></div>
+      <h4>Year Rollover</h4>
+      <p>At new academic year, current batch becomes <strong>Inactive</strong>. New batch auto-created for the next year cycle.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SECTION 6: KEY RULES ========== -->
+<div class="section" style="margin-bottom:80px;">
+  <div class="section-title"><i class="fas fa-gavel"></i> 6. Key Business Rules</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-top:16px;">
+
+    <div style="background:var(--card-bg);border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(115,34,105,0.08);border-left:4px solid var(--primary);">
+      <h4 style="font-size:14px;color:var(--primary);margin-bottom:8px;"><i class="fas fa-lock"></i> Master Settings Access</h4>
+      <p style="font-size:13px;color:var(--text-light);line-height:1.5;">Only the Super Admin can access Master Settings (States, Districts, Cities, Centres configuration). All other roles are restricted.</p>
+    </div>
+
+    <div style="background:var(--card-bg);border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(115,34,105,0.08);border-left:4px solid var(--blue);">
+      <h4 style="font-size:14px;color:var(--blue);margin-bottom:8px;"><i class="fas fa-filter"></i> Data Scoping</h4>
+      <p style="font-size:13px;color:var(--text-light);line-height:1.5;">State Leads see data for their state only. District Leads and PIs see data for their district only. Super Admin and Admin see all data.</p>
+    </div>
+
+    <div style="background:var(--card-bg);border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(115,34,105,0.08);border-left:4px solid var(--teal);">
+      <h4 style="font-size:14px;color:var(--teal);margin-bottom:8px;"><i class="fas fa-layer-group"></i> One Active Batch Per State</h4>
+      <p style="font-size:13px;color:var(--text-light);line-height:1.5;">Only one batch can be active per state at any time. When a new academic year begins, the previous batch is deactivated and a new one is created.</p>
+    </div>
+
+    <div style="background:var(--card-bg);border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(115,34,105,0.08);border-left:4px solid var(--orange);">
+      <h4 style="font-size:14px;color:var(--orange);margin-bottom:8px;"><i class="fas fa-user-tag"></i> Batch Field is Optional</h4>
+      <p style="font-size:13px;color:var(--text-light);line-height:1.5;">The Batch field in the FLP registration form is not mandatory. FLPs can be added without a batch and allocated later through Batch Management.</p>
+    </div>
+
+    <div style="background:var(--card-bg);border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(115,34,105,0.08);border-left:4px solid var(--green);">
+      <h4 style="font-size:14px;color:var(--green);margin-bottom:8px;"><i class="fas fa-calendar-alt"></i> Automatic Yearly Rollover</h4>
+      <p style="font-size:13px;color:var(--text-light);line-height:1.5;">Batches automatically change yearly. The system creates new batches for the current academic year and marks previous year's batches as Inactive.</p>
+    </div>
+
+    <div style="background:var(--card-bg);border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(115,34,105,0.08);border-left:4px solid var(--red);">
+      <h4 style="font-size:14px;color:var(--red);margin-bottom:8px;"><i class="fas fa-exclamation-triangle"></i> Assessment Prerequisites</h4>
+      <p style="font-size:13px;color:var(--text-light);line-height:1.5;">Post-Training Assessment can only be submitted after Pre-Training Assessment is completed. Once submitted, the FLP is removed from the Post-Assessment list.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- Print Button -->
+<button class="print-btn" onclick="window.print()">
+  <i class="fas fa-print"></i> Print / Save as PDF
+</button>
+
+</body>
+</html>

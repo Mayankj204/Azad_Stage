@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MGJ — Overall Activities (Prototype)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #e67e22;
+      --primary-dark: #c9600c;
+      --primary-soft: #fff5eb;
+      --secondary: #2c3e50;
+      --bg: #f4f6f8;
+      --surface: #ffffff;
+      --border: #e1e4e8;
+      --text: #2c3e50;
+      --text-light: #7f8c8d;
+      --success: #27ae60;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --info: #3498db;
+      --purple: #9b59b6;
+      --radius: 8px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+    /* Layout */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 250px; background: #fff; border-right: 1px solid var(--border); position: fixed; inset: 0 auto 0 0; overflow-y: auto; }
+    .sidebar-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-header .logo { width: 36px; height: 36px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 14px; }
+    .sidebar-header h1 { font-size: 14px; color: var(--secondary); font-weight: 700; }
+    .sidebar-header small { display: block; font-size: 11px; color: var(--text-light); font-weight: normal; }
+    .nav { padding: 12px 0; }
+    .nav-section { padding: 8px 20px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); font-weight: 600; margin-top: 8px; }
+    .nav-item { padding: 10px 20px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); border-left: 3px solid transparent; transition: all 0.15s; font-size: 13px; }
+    .nav-item:hover { background: #fafafa; }
+    .nav-item.active { background: var(--primary-soft); color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+    .nav-item i { width: 16px; }
+    .nav-item .pill { margin-left: auto; background: var(--danger); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 10px; }
+
+    .main { flex: 1; margin-left: 250px; }
+    .topbar { background: #fff; padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .topbar .crumbs { font-size: 12px; color: var(--text-light); }
+    .topbar .crumbs a { color: var(--text-light); text-decoration: none; }
+    .topbar .user { display: flex; align-items: center; gap: 8px; }
+    .topbar .user .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+
+    .content { padding: 24px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 22px; color: var(--secondary); font-weight: 700; }
+    .page-title small { display: block; font-size: 13px; color: var(--text-light); font-weight: normal; margin-top: 2px; }
+
+    /* Buttons */
+    .btn { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { background: #f8f9fa; border-color: var(--text-light); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon { padding: 6px 9px; background: transparent; border: 1px solid transparent; cursor: pointer; color: var(--text-light); }
+    .btn-icon:hover { color: var(--primary); background: #f8f9fa; }
+
+    /* Cards */
+    .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 14px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .card-title { font-size: 14px; font-weight: 600; color: var(--secondary); display: flex; align-items: center; gap: 8px; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat-card { background: #fff; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; }
+    .stat-card .icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; flex-shrink: 0; }
+    .stat-card .label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-card .value { font-size: 22px; font-weight: 700; color: var(--secondary); }
+
+    /* Tables */
+    .table-wrap { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; }
+    table.data { width: 100%; border-collapse: collapse; }
+    table.data th { background: #f8f9fa; text-align: left; padding: 11px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-light); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.data td { padding: 11px 12px; border-bottom: 1px solid #f1f3f5; font-size: 13px; }
+    table.data tr:hover td { background: #fafbfc; }
+    table.data tr:last-child td { border-bottom: none; }
+
+    /* Forms */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 12px; color: var(--text); font-weight: 600; }
+    .form-group input, .form-group select, .form-group textarea { padding: 7px 9px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); }
+    .form-group.full { grid-column: 1 / -1; }
+    .req { color: var(--danger); }
+    .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+    /* Badges */
+    .badge { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .badge-active { background: #d4edda; color: #155724; }
+    .badge-draft { background: #fff3cd; color: #856404; }
+    .badge-submit { background: #cfe2ff; color: #084298; }
+    .badge-warn { background: #fff3cd; color: #856404; }
+    .badge-info { background: #e0f2fe; color: #0369a1; }
+    .badge-locked { background: #e9ecef; color: #495057; }
+
+    /* Filters */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 12px; }
+    .filter-bar .form-group { min-width: 130px; }
+    .filter-bar .form-group label { font-size: 11px; }
+    .filter-bar .form-group input, .filter-bar .form-group select { padding: 6px 8px; font-size: 12px; }
+
+    /* Sidebar submenu (collapsible, parent + children) */
+    .nav-parent { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 20px; color: var(--text); border-left: 3px solid transparent; font-size: 13px; transition: all 0.15s; }
+    .nav-parent:hover { background: #fafafa; }
+    .nav-parent.expanded { background: var(--primary-soft); color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+    .nav-parent .chev { margin-left: auto; transition: transform 0.15s; font-size: 11px; }
+    .nav-parent.expanded .chev { transform: rotate(180deg); }
+    .nav-submenu { display: none; background: #fbfbfb; border-left: 3px solid var(--primary); }
+    .nav-submenu.open { display: block; }
+    .nav-submenu .nav-sub-item { padding: 8px 20px 8px 50px; font-size: 12.5px; cursor: pointer; color: var(--text); transition: all 0.15s; }
+    .nav-submenu .nav-sub-item:hover { background: #fff5eb; color: var(--primary); }
+    .nav-submenu .nav-sub-item.active { color: var(--primary); font-weight: 600; background: #fff5eb; }
+
+    /* Tabs (sub-tabs inside form) */
+    .sub-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+    .sub-tab-btn { padding: 9px 14px; border: none; background: transparent; cursor: pointer; font-size: 13px; color: var(--text-light); border-bottom: 3px solid transparent; white-space: nowrap; margin-bottom: -2px; }
+    .sub-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .sub-tab-btn .num { display: inline-block; width: 18px; height: 18px; background: var(--text-light); color: #fff; border-radius: 50%; font-size: 10px; font-weight: 600; line-height: 18px; text-align: center; margin-right: 6px; }
+    .sub-tab-btn.active .num { background: var(--primary); }
+    .sub-tab-content { display: none; }
+    .sub-tab-content.active { display: block; }
+
+    /* Section labels inside form (matching the colored sections of the Excel) */
+    .section-band { background: #fff7e6; border-left: 4px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-weight: 600; color: #8a5a14; margin: 12px 0 10px; font-size: 13px; }
+    .section-band-blue { background: #e6f4ff; border-left-color: #3498db; color: #0d4a82; }
+    .section-band-pink { background: #ffe6e6; border-left-color: #c0392b; color: #722; }
+    .section-band-green { background: #e8f7ec; border-left-color: #27ae60; color: #15622a; }
+    .section-band-purple { background: #ede4f7; border-left-color: #9b59b6; color: #4a266a; }
+
+    /* Chip / token list */
+    .chip-input { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; }
+    .chip-input input { flex: 1; min-width: 100px; border: none; outline: none; padding: 4px 6px; font-size: 13px; background: transparent; }
+    .chip { background: var(--primary-soft); color: var(--primary-dark); padding: 3px 9px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+    .chip i { cursor: pointer; opacity: 0.6; }
+    .chip i:hover { opacity: 1; }
+
+    /* Banner */
+    .alert-banner { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .alert-warn { background: #fff8eb; border-left: 4px solid var(--warning); color: #8a5a14; }
+    .alert-info { background: #e6f4ff; border-left: 4px solid var(--info); color: #0d4a82; }
+
+    /* Pivot table specific */
+    .pivot-wrap { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; }
+    .pivot { border-collapse: collapse; min-width: 100%; }
+    .pivot th, .pivot td { border: 1px solid var(--border); padding: 7px 10px; font-size: 12px; text-align: center; }
+    .pivot thead th { background: #f8f9fa; }
+    .pivot th.section { text-align: left; background: var(--primary-soft); color: var(--primary-dark); font-weight: 700; }
+    .pivot th.indicator { text-align: left; font-weight: 500; background: #fff; min-width: 220px; }
+    .pivot td.q-end { background: #f8f9fa; font-weight: 600; }
+    .pivot td.fy-total { background: #fff5eb; font-weight: 700; color: var(--primary-dark); }
+    .pivot tr.section-row td, .pivot tr.section-row th { background: #fff7e6; color: #8a5a14; font-weight: 700; text-align: left; padding: 9px 10px; font-size: 12px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #fff; border-radius: var(--radius); width: 100%; max-width: 880px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+    .modal-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
+    .modal-header h3 { color: var(--primary); font-size: 16px; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+    .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; flex: 0 0 auto; align-items: center; }
+    .close-x { cursor: pointer; color: var(--text-light); font-size: 20px; }
+
+    /* Detail grid */
+    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 20px; }
+    .detail-item { padding: 6px 0; }
+    .detail-item label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-light); display: block; margin-bottom: 2px; }
+    .detail-item span { font-size: 14px; color: var(--text); font-weight: 500; }
+
+    /* Prototype banner */
+    .proto-banner { position: fixed; bottom: 12px; right: 12px; background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 18px; font-size: 11px; box-shadow: 0 4px 14px rgba(0,0,0,0.2); z-index: 50; opacity: 0.92; }
+    .proto-banner b { color: #fb923c; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .row-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+
+    .empty { padding: 36px; text-align: center; color: var(--text-light); }
+    .empty i { font-size: 32px; opacity: 0.4; display: block; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">AF</div>
+      <div>
+        <h1>Azad Foundation</h1>
+        <small>MGJ Program</small>
+      </div>
+    </div>
+    <nav class="nav">
+      <!-- (In the production app this submenu lives RIGHT AFTER the MGJ tab) -->
+      <div class="nav-parent expanded" id="oaParent" onclick="toggleOAMenu()">
+        <i class="fas fa-tasks"></i> Overall Activities
+        <span class="pill" id="missingPill">3</span>
+        <i class="fas fa-chevron-down chev"></i>
+      </div>
+      <div class="nav-submenu open" id="oaSub">
+        <div class="nav-sub-item active" data-page="entries">Overall Activities List</div>
+        <div class="nav-sub-item" data-page="pivot">Overall Activities Report</div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="crumbs" id="crumbs">Home › Overall Activities › Dashboard</div>
+      <div class="user">
+        <span style="font-size:12px;color:var(--text-light);">PI</span>
+        <div class="avatar">KS</div>
+        <span style="font-size:13px;font-weight:600;">Kedar S.</span>
+      </div>
+    </div>
+    <div class="content" id="pageContent"></div>
+  </main>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal"><div class="modal" id="modalBox"></div></div>
+
+<div class="proto-banner"><b>PROTOTYPE</b> • MGJ Overall Activities</div>
+
+<script>
+// ==========================================================================
+// Sample data
+// ==========================================================================
+
+const FY = '2025-26';
+// Months Apr 2025 → Mar 2026 (financial year)
+const FY_MONTHS = [
+  { key: '2025-04', label: 'Apr-25', q: 'Q1' },
+  { key: '2025-05', label: 'May-25', q: 'Q1' },
+  { key: '2025-06', label: 'Jun-25', q: 'Q1' },
+  { key: '2025-07', label: 'Jul-25', q: 'Q2' },
+  { key: '2025-08', label: 'Aug-25', q: 'Q2' },
+  { key: '2025-09', label: 'Sep-25', q: 'Q2' },
+  { key: '2025-10', label: 'Oct-25', q: 'Q3' },
+  { key: '2025-11', label: 'Nov-25', q: 'Q3' },
+  { key: '2025-12', label: 'Dec-25', q: 'Q3' },
+  { key: '2026-01', label: 'Jan-26', q: 'Q4' },
+  { key: '2026-02', label: 'Feb-26', q: 'Q4' },
+  { key: '2026-03', label: 'Mar-26', q: 'Q4' },
+];
+
+const CENTRES = ['Delhi North', 'Delhi South', 'Delhi East', 'Kolkata', 'Jaipur'];
+const BATCHES = [
+  { id: 1, name: 'Delhi North 2025-28', centre: 'Delhi North' },
+  { id: 2, name: 'Delhi South 2025-28', centre: 'Delhi South' },
+  { id: 4, name: 'Delhi 2023-26', centre: 'Delhi North' },
+  { id: 5, name: 'Kolkata 2025-28', centre: 'Kolkata' },
+];
+
+// One row per (month × centre × batch). Mirrors the `mgj_monthly_activities` shape.
+const ENTRIES = [
+  {
+    id: 1, month: '2025-10', centre: 'Delhi North', batch: 'Delhi North 2025-28',
+    pakhwada_planned: 4, pakhwada_conducted: 3, pakhwada_participants: 60, pakhwada_direct: 45, pakhwada_one_to_one: 15,
+    sports_sessions: 2, sports_participants: 38,
+    hh_visits: 12, parent_meeting_total: 25, parent_meeting_male: 10, parent_meeting_female: 15, male_only_meetings: 3,
+    assignments_completed: 8, assignment_groups: 14,
+    www_enabled_women: 6, www_enrollments: 4, gbv_reached: 2,
+    leader_community_actions: 5, leader_vaccinations: 12, leader_www_forms: 8, leader_unpaid_care_boys: 14,
+    leader_phase_training: 0, leader_refresher_training: 1, synergy_meetings: 1, synergy_participants: 8,
+    leader_monthly_meetings: 2, leader_monthly_participants: 18,
+    alumni_meet_participants: 0, baseline_count: 0, midline_y1: 0, midline_y2: 0, endline_count: 0,
+    topics_pakhwada: ['Gender & Sex', 'Indian Constitution'], topics_sports: ['Cricket', 'Kabaddi'], assignment_themes: ['Household chores log'],
+    campaigns: [], status: 'Submitted',
+  },
+  {
+    id: 2, month: '2025-11', centre: 'Delhi North', batch: 'Delhi North 2025-28',
+    pakhwada_planned: 4, pakhwada_conducted: 4, pakhwada_participants: 72, pakhwada_direct: 56, pakhwada_one_to_one: 16,
+    sports_sessions: 2, sports_participants: 42,
+    hh_visits: 18, parent_meeting_total: 32, parent_meeting_male: 14, parent_meeting_female: 18, male_only_meetings: 2,
+    assignments_completed: 10, assignment_groups: 16,
+    www_enabled_women: 9, www_enrollments: 6, gbv_reached: 3,
+    leader_community_actions: 7, leader_vaccinations: 8, leader_www_forms: 15, leader_unpaid_care_boys: 22,
+    leader_phase_training: 0, leader_refresher_training: 1, synergy_meetings: 1, synergy_participants: 10,
+    leader_monthly_meetings: 2, leader_monthly_participants: 22,
+    alumni_meet_participants: 0, baseline_count: 0, midline_y1: 0, midline_y2: 0, endline_count: 0,
+    topics_pakhwada: ['Gender Roles', 'Unpaid Care Work'], topics_sports: ['Cricket'], assignment_themes: ['Care work tracker', 'Family interview'],
+    campaigns: [{ name: 'Canopy & Awareness', type: 'Local', participants: 80, remarks: 'Sunder Nagri' }],
+    status: 'Submitted',
+  },
+  {
+    id: 3, month: '2025-12', centre: 'Delhi North', batch: 'Delhi North 2025-28',
+    pakhwada_planned: 3, pakhwada_conducted: 3, pakhwada_participants: 65, pakhwada_direct: 50, pakhwada_one_to_one: 15,
+    sports_sessions: 2, sports_participants: 40,
+    hh_visits: 14, parent_meeting_total: 28, parent_meeting_male: 12, parent_meeting_female: 16, male_only_meetings: 2,
+    assignments_completed: 9, assignment_groups: 14,
+    www_enabled_women: 7, www_enrollments: 5, gbv_reached: 1,
+    leader_community_actions: 6, leader_vaccinations: 10, leader_www_forms: 12, leader_unpaid_care_boys: 18,
+    leader_phase_training: 1, leader_refresher_training: 0, synergy_meetings: 1, synergy_participants: 12,
+    leader_monthly_meetings: 2, leader_monthly_participants: 20,
+    alumni_meet_participants: 0, baseline_count: 0, midline_y1: 0, midline_y2: 0, endline_count: 0,
+    topics_pakhwada: ['Masculinity', 'Violence Prevention'], topics_sports: ['Football'], assignment_themes: ['Community survey'],
+    campaigns: [{ name: 'Mike Prachar', type: 'Outreach', participants: 0, remarks: '4 announcements made' }],
+    status: 'Submitted',
+  },
+  {
+    id: 4, month: '2026-01', centre: 'Delhi North', batch: 'Delhi North 2025-28',
+    pakhwada_planned: 4, pakhwada_conducted: 3, pakhwada_participants: 55, pakhwada_direct: 42, pakhwada_one_to_one: 13,
+    sports_sessions: 1, sports_participants: 28,
+    hh_visits: 10, parent_meeting_total: 24, parent_meeting_male: 11, parent_meeting_female: 13, male_only_meetings: 2,
+    assignments_completed: 7, assignment_groups: 12,
+    www_enabled_women: 5, www_enrollments: 4, gbv_reached: 2,
+    leader_community_actions: 4, leader_vaccinations: 6, leader_www_forms: 10, leader_unpaid_care_boys: 12,
+    leader_phase_training: 0, leader_refresher_training: 1, synergy_meetings: 1, synergy_participants: 9,
+    leader_monthly_meetings: 2, leader_monthly_participants: 19,
+    alumni_meet_participants: 0, baseline_count: 0, midline_y1: 0, midline_y2: 0, endline_count: 0,
+    topics_pakhwada: ['Body & Sexualities'], topics_sports: ['Kabaddi'], assignment_themes: ['Voice diary'],
+    campaigns: [{ name: 'OBR — One Billion Rising', type: 'Annual Flagship', participants: 120, remarks: 'Cross-centre rally' }],
+    status: 'Submitted',
+  },
+  {
+    id: 5, month: '2026-02', centre: 'Delhi North', batch: 'Delhi North 2025-28',
+    pakhwada_planned: 4, pakhwada_conducted: 4, pakhwada_participants: 70, pakhwada_direct: 54, pakhwada_one_to_one: 16,
+    sports_sessions: 2, sports_participants: 41,
+    hh_visits: 16, parent_meeting_total: 30, parent_meeting_male: 13, parent_meeting_female: 17, male_only_meetings: 3,
+    assignments_completed: 9, assignment_groups: 15,
+    www_enabled_women: 8, www_enrollments: 6, gbv_reached: 1,
+    leader_community_actions: 6, leader_vaccinations: 9, leader_www_forms: 14, leader_unpaid_care_boys: 20,
+    leader_phase_training: 0, leader_refresher_training: 0, synergy_meetings: 1, synergy_participants: 11,
+    leader_monthly_meetings: 2, leader_monthly_participants: 21,
+    alumni_meet_participants: 0, baseline_count: 0, midline_y1: 0, midline_y2: 0, endline_count: 0,
+    topics_pakhwada: ['Communication Skills'], topics_sports: ['Cricket', 'Football'], assignment_themes: ['Community action plan'],
+    campaigns: [
+      { name: "Women's Day Rally", type: 'External', participants: 95, remarks: 'with DCW' },
+      { name: 'Samanta Bandhan', type: 'Annual', participants: 60, remarks: '' },
+    ],
+    status: 'Draft',
+  },
+  // March 2026 entry not yet made — drives the "missing months" banner
+  {
+    id: 6, month: '2025-11', centre: 'Delhi South', batch: 'Delhi South 2025-28',
+    pakhwada_planned: 4, pakhwada_conducted: 3, pakhwada_participants: 48, pakhwada_direct: 38, pakhwada_one_to_one: 10,
+    sports_sessions: 2, sports_participants: 30,
+    hh_visits: 8, parent_meeting_total: 18, parent_meeting_male: 8, parent_meeting_female: 10, male_only_meetings: 1,
+    assignments_completed: 5, assignment_groups: 10,
+    www_enabled_women: 3, www_enrollments: 2, gbv_reached: 0,
+    leader_community_actions: 3, leader_vaccinations: 4, leader_www_forms: 6, leader_unpaid_care_boys: 10,
+    leader_phase_training: 0, leader_refresher_training: 0, synergy_meetings: 1, synergy_participants: 6,
+    leader_monthly_meetings: 1, leader_monthly_participants: 12,
+    alumni_meet_participants: 0, baseline_count: 0, midline_y1: 0, midline_y2: 0, endline_count: 0,
+    topics_pakhwada: ['Gender Roles'], topics_sports: ['Kabaddi'], assignment_themes: ['Home chores diary'],
+    campaigns: [], status: 'Submitted',
+  },
+];
+
+// Existing master data (would be picked from existing modules in real app)
+const TOPIC_MASTER = ['Gender & Sex', 'Gender Roles', 'Unpaid Care Work', 'Masculinity', 'Violence Prevention', 'Indian Constitution', 'Body & Sexualities', 'Communication Skills', 'Decision Making', 'Empathy & Social Change'];
+const SPORTS_MASTER = ['Cricket', 'Football', 'Kabaddi', 'Volleyball', 'Athletics'];
+const CAMPAIGN_MASTER = ['OBR — One Billion Rising', "Women's Day Rally", 'Alumni Meet', 'Samanta Bandhan', 'Ghar ka Kaam Sabka Kaam', 'Canopy & Awareness', 'Mike Prachar'];
+
+// ==========================================================================
+// Helpers
+// ==========================================================================
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const mLabel = key => (FY_MONTHS.find(m => m.key === key) || {}).label || key;
+const mQuarter = key => (FY_MONTHS.find(m => m.key === key) || {}).q || '?';
+
+function setCrumbs(parts) { $('crumbs').innerHTML = parts.map(p => esc(p)).join(' › '); }
+function openModal(html) { $('modalBox').innerHTML = html; $('modal').classList.add('active'); }
+function closeModal() { $('modal').classList.remove('active'); }
+function toast(msg, kind) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;top:20px;right:20px;background:'+(kind==='warn'?'#f39c12':'#10b981')+';color:#fff;padding:10px 18px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.15);z-index:200;font-size:13px;font-weight:500;';
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2200);
+  setTimeout(() => t.remove(), 2700);
+}
+
+// ==========================================================================
+// Pages
+// ==========================================================================
+
+function toggleOAMenu() {
+  const p = document.getElementById('oaParent');
+  const s = document.getElementById('oaSub');
+  if (!p || !s) return;
+  p.classList.toggle('expanded');
+  s.classList.toggle('open');
+}
+
+document.querySelectorAll('.nav-sub-item').forEach(it => {
+  it.addEventListener('click', () => {
+    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+    it.classList.add('active');
+    render(it.dataset.page);
+  });
+});
+
+function render(page) {
+  const c = $('pageContent');
+  if (page === 'entries') c.innerHTML = pageEntries();
+  else if (page === 'pivot') c.innerHTML = pagePivot();
+  else c.innerHTML = '<div class="empty"><i class="fas fa-tools"></i> Coming soon</div>';
+  window.scrollTo(0, 0);
+}
+
+// ==========================================================================
+// Dashboard
+// ==========================================================================
+
+function pageDashboard() {
+  setCrumbs(['Home', 'Overall Activities', 'Dashboard']);
+  const submitted = ENTRIES.filter(e => e.status === 'Submitted').length;
+  const drafts = ENTRIES.filter(e => e.status === 'Draft').length;
+  const ttlPakhwada = ENTRIES.reduce((s, e) => s + (e.pakhwada_conducted || 0), 0);
+  const ttlHH = ENTRIES.reduce((s, e) => s + (e.hh_visits || 0), 0);
+  const ttlCampaigns = ENTRIES.reduce((s, e) => s + (e.campaigns ? e.campaigns.length : 0), 0);
+  const ttlLeaderActions = ENTRIES.reduce((s, e) => s + (e.leader_community_actions || 0), 0);
+
+  // Missing months: for each (centre, batch) and each month up to current, check ENTRIES exists
+  const today = new Date('2026-03-15');
+  const cutoff = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+  const expected = [];
+  BATCHES.forEach(b => {
+    FY_MONTHS.forEach(m => {
+      if (m.key <= cutoff) expected.push({ key: m.key, label: m.label, centre: b.centre, batch: b.name });
+    });
+  });
+  const missing = expected.filter(x =>
+    !ENTRIES.find(e => e.month === x.key && e.centre === x.centre && e.batch === x.batch)
+  );
+
+  const missingPill = document.getElementById('missingPill');
+  if (missingPill) missingPill.textContent = missing.length;
+
+  return `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Overall Activities Dashboard <small>FY ${FY} • ${ENTRIES.length} monthly rows captured across ${new Set(ENTRIES.map(e => e.centre + '|' + e.batch)).size} batch(es)</small></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline"><i class="fas fa-calendar"></i> FY 2025-26</button>
+        <button class="btn btn-primary" onclick="openAddEntryModal()"><i class="fas fa-plus"></i> New Monthly Entry</button>
+      </div>
+    </div>
+
+    ${missing.length ? `
+      <div class="alert-banner alert-warn">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div><strong>${missing.length} batch-month(s) missing entries.</strong> e.g.
+          ${missing.slice(0, 3).map(x => x.centre + ' / ' + x.batch.replace(/.*?(\\d{4}.*)/, '$1') + ' — ' + x.label).join(' · ')}${missing.length > 3 ? ' …' : ''}.
+          <a href="#" onclick="goto('entries');return false;" style="color:#a05a05;font-weight:600;">Show all →</a>
+        </div>
+      </div>` : ''}
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="icon" style="background:var(--success);"><i class="fas fa-check-circle"></i></div><div><div class="label">Submitted</div><div class="value">${submitted}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--warning);"><i class="fas fa-clock"></i></div><div><div class="label">Drafts</div><div class="value">${drafts}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--primary);"><i class="fas fa-comments"></i></div><div><div class="label">Pakhwada Done</div><div class="value">${ttlPakhwada}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--info);"><i class="fas fa-home"></i></div><div><div class="label">HH Visits</div><div class="value">${ttlHH}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--danger);"><i class="fas fa-bullhorn"></i></div><div><div class="label">Campaigns</div><div class="value">${ttlCampaigns}</div></div></div>
+      <div class="stat-card"><div class="icon" style="background:var(--purple);"><i class="fas fa-hands-helping"></i></div><div><div class="label">Leader Actions</div><div class="value">${ttlLeaderActions}</div></div></div>
+    </div>
+
+    <div class="row-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-bell"></i> Pending — Drafts to Submit</div><a href="#" onclick="goto('entries');return false;" style="font-size:12px;color:var(--primary);">Open list →</a></div>
+        ${ENTRIES.filter(e => e.status === 'Draft').map(e => `
+          <div style="padding:10px 0;border-bottom:1px solid #f1f3f5;">
+            <strong>${esc(mLabel(e.month))}</strong> — ${esc(e.centre)} / ${esc(e.batch)}
+            <span class="badge badge-draft" style="margin-left:8px;">Draft</span>
+            <button class="btn btn-outline btn-sm" style="float:right;" onclick="openEditEntryModal(${e.id})">Continue</button>
+          </div>
+        `).join('') || '<div style="padding:20px 0;color:#999;text-align:center;">No drafts. Nice.</div>'}
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-chart-line"></i> Quarter at a glance — Q3 (${FY})</div></div>
+        ${qSnapshot('Q3')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-fire"></i> Topics covered this FY</div></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${topicFreq().slice(0, 12).map(t => `<span class="chip" title="${t.count}× covered"><i class="fas fa-tag"></i> ${esc(t.name)} <small style="opacity:0.7;">×${t.count}</small></span>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function qSnapshot(q) {
+  const rows = ENTRIES.filter(e => mQuarter(e.month) === q);
+  if (!rows.length) return '<div style="color:#999;padding:14px 0;">No entries yet for this quarter.</div>';
+  const sum = (k) => rows.reduce((s, e) => s + (e[k] || 0), 0);
+  const items = [
+    ['Pakhwada Conducted', sum('pakhwada_conducted')],
+    ['Direct Participants', sum('pakhwada_direct')],
+    ['Sports Sessions', sum('sports_sessions')],
+    ['HH Visits', sum('hh_visits')],
+    ['Community Meetings', sum('parent_meeting_total')],
+    ['Assignments Completed', sum('assignments_completed')],
+    ['WWW Enrollments', sum('www_enrollments')],
+    ['Leader Comm. Actions', sum('leader_community_actions')],
+  ];
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;">' +
+    items.map(([k, v]) => '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #eee;font-size:13px;"><span style="color:#555;">' + esc(k) + '</span><strong>' + v + '</strong></div>').join('') +
+    '</div>';
+}
+
+function topicFreq() {
+  const map = {};
+  ENTRIES.forEach(e => (e.topics_pakhwada || []).forEach(t => map[t] = (map[t] || 0) + 1));
+  return Object.entries(map).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+
+// ==========================================================================
+// Monthly Entries List
+// ==========================================================================
+
+function pageEntries() {
+  setCrumbs(['Home', 'Overall Activities', 'Overall Activities List']);
+  const sorted = ENTRIES.slice().sort((a, b) => b.month.localeCompare(a.month));
+  return `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Overall Activities List <small>One row per Month × Centre × Batch</small></div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddEntryModal()"><i class="fas fa-plus"></i> Add Activities</button>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group"><label>Year</label><select><option>2025-26</option><option>2024-25</option></select></div>
+        <div class="form-group"><label>Month</label><select><option>All Months</option>${FY_MONTHS.map(m => '<option>' + m.label + '</option>').join('')}</select></div>
+        <div class="form-group"><label>Centre</label><select><option>All Centres</option>${CENTRES.map(c => '<option>' + c + '</option>').join('')}</select></div>
+        <div class="form-group"><label>Batch</label><select><option>All Batches</option>${BATCHES.map(b => '<option>' + esc(b.name) + '</option>').join('')}</select></div>
+        <div class="form-group"><label>Status</label><select><option>All</option><option>Draft</option><option>Submitted</option></select></div>
+        <button class="btn btn-primary btn-sm" style="height:32px;"><i class="fas fa-search"></i> Search</button>
+        <button class="btn btn-outline btn-sm" style="height:32px;"><i class="fas fa-redo"></i> Reset</button>
+        <button class="btn btn-outline btn-sm" style="height:32px;margin-left:auto;"><i class="fas fa-file-excel"></i> Export</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th style="width:60px;">S.No</th>
+              <th>Month</th>
+              <th>Centre</th>
+              <th>Batch</th>
+              <th style="text-align:center;">Input Pakh. (P/C)</th>
+              <th style="text-align:center;">Sports</th>
+              <th style="text-align:center;">Parent Meetings</th>
+              <th style="text-align:center;">Campaigns</th>
+              <th style="text-align:center;">Leader</th>
+              <th style="width:140px;text-align:center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map((e, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${esc(mLabel(e.month))}</strong><br><small style="color:#999;">${e.month}</small></td>
+                <td>${esc(e.centre)}</td>
+                <td>${esc(e.batch)}</td>
+                <td style="text-align:center;">${e.pakhwada_planned || 0} / ${e.pakhwada_conducted || 0}</td>
+                <td style="text-align:center;">${e.sports_sessions || 0}</td>
+                <td style="text-align:center;">${e.parent_meeting_total || 0}<br><small style="color:#888;">${e.parent_meeting_male||0}M / ${e.parent_meeting_female||0}F</small></td>
+                <td style="text-align:center;">${(e.campaigns || []).length}</td>
+                <td style="text-align:center;">${e.leader_community_actions || 0}</td>
+                <td style="text-align:center;white-space:nowrap;">
+                  <button class="btn-icon" title="View" onclick="openViewEntryModal(${e.id})"><i class="fas fa-eye"></i></button>
+                  <button class="btn-icon" title="Edit" onclick="openEditEntryModal(${e.id})"><i class="fas fa-edit"></i></button>
+                  <button class="btn-icon" title="Delete" onclick="alert('(prototype) confirm delete')" style="color:#e74c3c;"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;border-top:1px solid var(--border);margin-top:12px;font-size:12px;color:var(--text-light);">
+        <div>Items per page: <select style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;"><option>10</option><option>25</option><option>50</option></select></div>
+        <div>Showing 1–${sorted.length} of ${sorted.length}</div>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================================================
+// Add / Edit form (5-tab modal)
+// ==========================================================================
+
+function openAddEntryModal() { _openEntryModal({ mode: 'add', entry: null }); }
+function openEditEntryModal(id) {
+  const e = ENTRIES.find(x => x.id === id);
+  _openEntryModal({ mode: 'edit', entry: e });
+}
+
+function _openEntryModal({ mode, entry }) {
+  const e = entry || { topics_pakhwada: [], topics_sports: [], assignment_themes: [], campaigns: [] };
+
+  openModal(`
+    <div class="modal-header">
+      <h3><i class="fas fa-edit"></i> ${mode === 'edit' ? 'Edit' : 'New'} Monthly Entry${entry ? ' — ' + esc(mLabel(entry.month)) + ' · ' + esc(entry.centre) : ''}</h3>
+      <span class="close-x" onclick="closeModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="sub-tabs" id="entryTabs">
+        <button class="sub-tab-btn active" data-tab="setup"><span class="num">0</span> Setup</button>
+        <button class="sub-tab-btn" data-tab="monthly"><span class="num">1</span> Monthly Activities</button>
+        <button class="sub-tab-btn" data-tab="campaigns"><span class="num">2</span> Campaigns</button>
+        <button class="sub-tab-btn" data-tab="leaders"><span class="num">3</span> Leaders' Log</button>
+        <button class="sub-tab-btn" data-tab="annual"><span class="num">4</span> Linkages &amp; Annual</button>
+      </div>
+
+      <!-- Tab: Setup -->
+      <div class="sub-tab-content active" data-tab="setup">
+        <div class="alert-banner alert-info"><i class="fas fa-info-circle"></i> Pakhwada / Sports counts can be auto-filled from MGJ Events for this month. <a href="#" onclick="event.preventDefault();toast('(prototype) auto-filled from 4 events');">Auto-fill now</a></div>
+        <div class="row-3">
+          <div class="form-group"><label>Month <span class="req">*</span></label>
+            <select>${FY_MONTHS.map(m => '<option ' + (e.month === m.key ? 'selected' : '') + '>' + m.label + '</option>').join('')}</select>
+          </div>
+          <div class="form-group"><label>Centre <span class="req">*</span></label>
+            <select>${CENTRES.map(c => '<option ' + (e.centre === c ? 'selected' : '') + '>' + c + '</option>').join('')}</select>
+          </div>
+          <div class="form-group"><label>Batch <span class="req">*</span></label>
+            <select>${BATCHES.map(b => '<option ' + (e.batch === b.name ? 'selected' : '') + '>' + esc(b.name) + '</option>').join('')}</select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Monthly Activities -->
+      <div class="sub-tab-content" data-tab="monthly">
+        <div class="section-band">1.1 Perspective Building Sessions (Pakhwada)</div>
+        <div class="row-3">
+          <div class="form-group"><label>Planned Sessions</label><input type="number" value="${e.pakhwada_planned || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Conducted</label><input type="number" value="${e.pakhwada_conducted || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Total Participants</label><input type="number" value="${e.pakhwada_participants || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Direct (in session)</label><input type="number" value="${e.pakhwada_direct || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Home Visit (1-to-1)</label><input type="number" value="${e.pakhwada_one_to_one || ''}" placeholder="0"></div>
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Topics covered</label>
+          ${chipInputHtml('topics_pakhwada', e.topics_pakhwada, TOPIC_MASTER)}
+        </div>
+
+        <div class="section-band">1.2 Sports-based Learning</div>
+        <div class="row-2">
+          <div class="form-group"><label>Sports Sessions</label><input type="number" value="${e.sports_sessions || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Participants</label><input type="number" value="${e.sports_participants || ''}" placeholder="0"></div>
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Sports played</label>
+          ${chipInputHtml('topics_sports', e.topics_sports, SPORTS_MASTER)}
+        </div>
+
+        <div class="section-band">1.3 Parent Engagement</div>
+        <div class="row-4">
+          <div class="form-group"><label>Household Visits</label><input type="number" value="${e.hh_visits || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Parent Meetings (Total)</label><input type="number" value="${e.parent_meeting_total || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Male Participants</label><input type="number" value="${e.parent_meeting_male || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Female Participants</label><input type="number" value="${e.parent_meeting_female || ''}" placeholder="0"></div>
+        </div>
+        <div class="form-group" style="margin-top:6px;max-width:300px;"><label>Male-only Meetings</label><input type="number" value="${e.male_only_meetings || ''}" placeholder="0"></div>
+
+        <div class="section-band">1.4 Assignments &amp; Group Tasks</div>
+        <div class="row-2">
+          <div class="form-group"><label>Assignments Completed</label><input type="number" value="${e.assignments_completed || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Groups / Members Involved</label><input type="number" value="${e.assignment_groups || ''}" placeholder="0"></div>
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Themes</label>
+          ${chipInputHtml('assignment_themes', e.assignment_themes, [])}
+        </div>
+      </div>
+
+      <!-- Tab: Campaigns -->
+      <div class="sub-tab-content" data-tab="campaigns">
+        <div class="section-band section-band-pink">2. Campaigns &amp; Activities (this month)</div>
+        <div style="margin-bottom:8px;color:var(--text-light);font-size:12px;">Add a row for each campaign that took place this month. The Campaign Name dropdown is sourced from the Campaigns Master.</div>
+        <table class="data" id="campaignTable">
+          <thead><tr><th style="width:30%;">Campaign</th><th>Type</th><th>Participants</th><th>Remarks</th><th></th></tr></thead>
+          <tbody>
+            ${(e.campaigns || []).map((c, i) => campaignRowHtml(c, i)).join('')}
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="addCampaignRow()"><i class="fas fa-plus"></i> Add Campaign</button>
+
+        <div class="section-band section-band-pink" style="margin-top:18px;">Outreach counters</div>
+        <div class="row-2">
+          <div class="form-group"><label>Canopy &amp; Awareness Activities</label><input type="number" placeholder="count this month"></div>
+          <div class="form-group"><label>Mike Prachar / Announcements</label><input type="number" placeholder="count this month"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Leaders' Log -->
+      <div class="sub-tab-content" data-tab="leaders">
+        <div class="section-band section-band-blue">4. Leaders' Log (critical for MGJ leadership outputs)</div>
+        <div class="row-3">
+          <div class="form-group"><label>Community Action by Leaders</label><input type="number" value="${e.leader_community_actions || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Vaccinations Linked</label><input type="number" value="${e.leader_vaccinations || ''}" placeholder="0"></div>
+          <div class="form-group"><label>WWW Survey Forms Filled</label><input type="number" value="${e.leader_www_forms || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Boys in Unpaid-Care Campaign</label><input type="number" value="${e.leader_unpaid_care_boys || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Leadership Dev. Training (#)</label><input type="number" value="${e.leader_phase_training || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Refresher Training (#)</label><input type="number" value="${e.leader_refresher_training || ''}" placeholder="0"></div>
+        </div>
+
+        <div class="section-band section-band-blue" style="margin-top:18px;">Leader meetings</div>
+        <div class="row-4">
+          <div class="form-group"><label>Synergy Meetings</label><input type="number" value="${e.synergy_meetings || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Synergy Participants</label><input type="number" value="${e.synergy_participants || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Monthly Leader Meetings</label><input type="number" value="${e.leader_monthly_meetings || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Monthly Mtg Participants</label><input type="number" value="${e.leader_monthly_participants || ''}" placeholder="0"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Linkages & Annual -->
+      <div class="sub-tab-content" data-tab="annual">
+        <div class="section-band section-band-green">3. WWW – MGJ Linkages</div>
+        <div class="row-3">
+          <div class="form-group"><label>Enabled women for WWW</label><input type="number" value="${e.www_enabled_women || ''}" placeholder="0"></div>
+          <div class="form-group"><label>WWW Enrollments</label><input type="number" value="${e.www_enrollments || ''}" placeholder="0"></div>
+          <div class="form-group"><label>GBV — # reached</label><input type="number" value="${e.gbv_reached || ''}" placeholder="0"></div>
+        </div>
+        <div class="form-group" style="margin-top:8px;"><label>GBV remarks (no survivor PII)</label><textarea rows="2" placeholder="Type of support, location, referral, follow-up — keep anonymised."></textarea></div>
+
+        <div class="section-band section-band-purple" style="margin-top:18px;">5. Annual Activities (fill only when relevant)</div>
+        <div class="row-3">
+          <div class="form-group"><label>Alumni Meet — participants</label><input type="number" value="${e.alumni_meet_participants || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Baseline Survey count</label><input type="number" value="${e.baseline_count || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Midline (Y1) count</label><input type="number" value="${e.midline_y1 || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Midline (Y2) count</label><input type="number" value="${e.midline_y2 || ''}" placeholder="0"></div>
+          <div class="form-group"><label>Endline count</label><input type="number" value="${e.endline_count || ''}" placeholder="0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="font-size:12px;color:var(--text-light);">${entry ? 'Last updated 23 Apr 2026 by Kedar S.' : 'Auto-saving as you type'}</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-outline" onclick="closeModal();toast('Saved as draft','warn');">Save Draft</button>
+        <button class="btn btn-primary" onclick="closeModal();toast('Submitted &amp; locked');">${mode === 'edit' ? 'Update &amp; Submit' : 'Submit'}</button>
+      </div>
+    </div>
+  `);
+
+  // wire sub-tabs
+  document.querySelectorAll('#entryTabs .sub-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#entryTabs .sub-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector('.sub-tab-content[data-tab="' + btn.dataset.tab + '"]').classList.add('active');
+    });
+  });
+}
+
+// ==== Chip input helpers ====
+let _chipBuffers = {};
+function chipInputHtml(field, items, suggestions) {
+  _chipBuffers[field] = (items || []).slice();
+  const id = 'chip_' + field;
+  return `<div class="chip-input" id="${id}">
+    ${(items || []).map(t => '<span class="chip">' + esc(t) + ' <i class="fas fa-times" onclick="removeChip(\'' + field + '\', \'' + esc(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"></i></span>').join('')}
+    <input list="dl_${field}" placeholder="Type and press Enter" onkeydown="handleChipKey(event, '${field}')">
+    ${suggestions && suggestions.length ? '<datalist id="dl_' + field + '">' + suggestions.map(s => '<option value="' + esc(s) + '">').join('') + '</datalist>' : ''}
+  </div>`;
+}
+function handleChipKey(ev, field) {
+  if (ev.key === 'Enter' || ev.key === ',') {
+    ev.preventDefault();
+    const v = ev.target.value.trim();
+    if (v) { _chipBuffers[field] = _chipBuffers[field] || []; _chipBuffers[field].push(v); ev.target.value = ''; rerenderChips(field); }
+  }
+}
+function removeChip(field, val) {
+  _chipBuffers[field] = (_chipBuffers[field] || []).filter(x => x !== val);
+  rerenderChips(field);
+}
+function rerenderChips(field) {
+  const wrap = document.getElementById('chip_' + field);
+  if (!wrap) return;
+  const input = wrap.querySelector('input');
+  const dl = wrap.querySelector('datalist');
+  wrap.innerHTML = (_chipBuffers[field] || []).map(t => '<span class="chip">' + esc(t) + ' <i class="fas fa-times" onclick="removeChip(\'' + field + '\', \'' + esc(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"></i></span>').join('');
+  wrap.appendChild(input);
+  if (dl) wrap.appendChild(dl);
+  input.focus();
+}
+
+// ==== Campaign rows ====
+function campaignRowHtml(c, idx) {
+  c = c || { name: '', type: '', participants: '', remarks: '' };
+  return `<tr>
+    <td>
+      <input list="campaignNames" value="${esc(c.name)}" placeholder="Campaign name" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:4px;">
+      <datalist id="campaignNames">${CAMPAIGN_MASTER.map(c => '<option value="' + esc(c) + '">').join('')}</datalist>
+    </td>
+    <td>
+      <select style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:4px;">
+        <option ${c.type === 'Annual Flagship' ? 'selected' : ''}>Annual Flagship</option>
+        <option ${c.type === 'External' ? 'selected' : ''}>External</option>
+        <option ${c.type === 'Local' ? 'selected' : ''}>Local</option>
+        <option ${c.type === 'Annual' ? 'selected' : ''}>Annual</option>
+        <option ${c.type === 'Outreach' ? 'selected' : ''}>Outreach</option>
+      </select>
+    </td>
+    <td><input type="number" value="${c.participants || ''}" placeholder="0" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:4px;"></td>
+    <td><input value="${esc(c.remarks)}" placeholder="Optional" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:4px;"></td>
+    <td style="text-align:center;"><button class="btn-icon" title="Remove" onclick="this.closest('tr').remove();" style="color:#e74c3c;"><i class="fas fa-times"></i></button></td>
+  </tr>`;
+}
+function addCampaignRow() {
+  const tb = document.querySelector('#campaignTable tbody');
+  if (tb) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = campaignRowHtml({ name: '', type: 'Local', participants: '', remarks: '' }, tb.children.length);
+    tb.appendChild(tr);
+  }
+}
+
+// ==========================================================================
+// View modal (read-only)
+// ==========================================================================
+
+function openViewEntryModal(id) {
+  const e = ENTRIES.find(x => x.id === id);
+  if (!e) return;
+  const dc = (l, v) => '<div class="detail-item"><label>' + esc(l) + '</label><span>' + esc(v == null ? '—' : v) + '</span></div>';
+  openModal(`
+    <div class="modal-header">
+      <h3><i class="fas fa-eye"></i> ${esc(mLabel(e.month))} — ${esc(e.centre)} / ${esc(e.batch)}</h3>
+      <span class="close-x" onclick="closeModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div style="background:#fff7e6;border-left:4px solid var(--primary);padding:14px 18px;border-radius:6px;margin-bottom:18px;display:flex;gap:24px;flex-wrap:wrap;">
+        <div><small style="color:#a05a05;">Month</small><div style="font-weight:700;">${esc(mLabel(e.month))} (${mQuarter(e.month)})</div></div>
+        <div><small style="color:#a05a05;">Centre</small><div style="font-weight:700;">${esc(e.centre)}</div></div>
+        <div><small style="color:#a05a05;">Batch</small><div style="font-weight:700;">${esc(e.batch)}</div></div>
+        <div><small style="color:#a05a05;">Status</small><div>${e.status === 'Draft' ? '<span class="badge badge-draft">Draft</span>' : '<span class="badge badge-submit">Submitted</span>'}</div></div>
+      </div>
+
+      <div class="section-band">1. Monthly Activities</div>
+      <div class="detail-grid">
+        ${dc('Pakhwada — Planned', e.pakhwada_planned)}
+        ${dc('Pakhwada — Conducted', e.pakhwada_conducted)}
+        ${dc('Pakhwada — Total Participants', e.pakhwada_participants)}
+        ${dc('Pakhwada — Direct in Session', e.pakhwada_direct)}
+        ${dc('Pakhwada — Home Visit 1-to-1', e.pakhwada_one_to_one)}
+        ${dc('Sports — Sessions', e.sports_sessions)}
+        ${dc('Sports — Participants', e.sports_participants)}
+        ${dc('Household Visits', e.hh_visits)}
+        ${dc('Parent Meetings (Total)', e.parent_meeting_total)}
+        ${dc('Parent Mtg — Male', e.parent_meeting_male)}
+        ${dc('Parent Mtg — Female', e.parent_meeting_female)}
+        ${dc('Male-only Meetings', e.male_only_meetings)}
+        ${dc('Assignments Completed', e.assignments_completed)}
+        ${dc('Groups / Members Involved', e.assignment_groups)}
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+        ${(e.topics_pakhwada || []).map(t => '<span class="chip"><i class="fas fa-comments"></i> ' + esc(t) + '</span>').join('')}
+        ${(e.topics_sports || []).map(t => '<span class="chip"><i class="fas fa-running"></i> ' + esc(t) + '</span>').join('')}
+        ${(e.assignment_themes || []).map(t => '<span class="chip"><i class="fas fa-tasks"></i> ' + esc(t) + '</span>').join('')}
+      </div>
+
+      <div class="section-band section-band-pink" style="margin-top:18px;">2. Campaigns this month</div>
+      ${(e.campaigns && e.campaigns.length) ? `<table class="data"><thead><tr><th>Campaign</th><th>Type</th><th>Participants</th><th>Remarks</th></tr></thead><tbody>` +
+        e.campaigns.map(c => '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.type) + '</td><td>' + (c.participants || 0) + '</td><td>' + esc(c.remarks || '—') + '</td></tr>').join('') +
+        `</tbody></table>` : '<div style="color:#999;padding:14px 0;">No campaigns logged this month.</div>'}
+
+      <div class="section-band section-band-green" style="margin-top:18px;">3. WWW – MGJ Linkages &amp; GBV</div>
+      <div class="detail-grid">
+        ${dc('Enabled for WWW', e.www_enabled_women)}
+        ${dc('WWW Enrollments', e.www_enrollments)}
+        ${dc('GBV — # reached', e.gbv_reached)}
+      </div>
+
+      <div class="section-band section-band-blue" style="margin-top:18px;">4. Leaders' Log</div>
+      <div class="detail-grid">
+        ${dc('Community Action by Leaders', e.leader_community_actions)}
+        ${dc('Vaccinations Linked', e.leader_vaccinations)}
+        ${dc('WWW Survey Forms Filled', e.leader_www_forms)}
+        ${dc('Boys in Unpaid Care Campaign', e.leader_unpaid_care_boys)}
+        ${dc('Leadership Phase Training', e.leader_phase_training)}
+        ${dc('Refresher Training', e.leader_refresher_training)}
+        ${dc('Synergy Meetings', e.synergy_meetings)}
+        ${dc('Synergy Participants', e.synergy_participants)}
+        ${dc('Monthly Leader Meetings', e.leader_monthly_meetings)}
+        ${dc('Monthly Mtg Participants', e.leader_monthly_participants)}
+      </div>
+
+      <div class="section-band section-band-purple" style="margin-top:18px;">5. Annual / Periodic</div>
+      <div class="detail-grid">
+        ${dc('Alumni Meet Participants', e.alumni_meet_participants)}
+        ${dc('Baseline Count', e.baseline_count)}
+        ${dc('Midline Y1', e.midline_y1)}
+        ${dc('Midline Y2', e.midline_y2)}
+        ${dc('Endline Count', e.endline_count)}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span style="font-size:12px;color:var(--text-light);"><i class="fas fa-clock"></i> Submitted on 12 Nov 2025 by Hari (PI)</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="closeModal()">Close</button>
+        <button class="btn btn-primary" onclick="closeModal();openEditEntryModal(${e.id});"><i class="fas fa-edit"></i> Edit</button>
+      </div>
+    </div>
+  `);
+}
+
+// ==========================================================================
+// Pivot / Excel-shape view
+// ==========================================================================
+
+function pagePivot() {
+  setCrumbs(['Home', 'Overall Activities', 'Overall Activities Report']);
+
+  const cells = (centreFilter, batchFilter, getter) => {
+    return FY_MONTHS.map(m => {
+      const e = ENTRIES.find(x => x.month === m.key && (!centreFilter || x.centre === centreFilter) && (!batchFilter || x.batch === batchFilter));
+      return e ? (getter(e) || 0) : '';
+    });
+  };
+
+  const rows = [
+    { section: '1. MONTHLY ACTIVITIES' },
+    { sub: '1.1 Perspective Building (Pakhwada)' },
+    { ind: 'Pakhwada Planned',           get: e => e.pakhwada_planned },
+    { ind: 'Pakhwada Conducted',          get: e => e.pakhwada_conducted },
+    { ind: 'Total Participants',          get: e => e.pakhwada_participants },
+    { ind: 'Direct in Session',           get: e => e.pakhwada_direct },
+    { ind: 'Home Visit (One-to-One)',     get: e => e.pakhwada_one_to_one },
+    { sub: '1.2 Sports-based Learning' },
+    { ind: 'Sports Sessions',             get: e => e.sports_sessions },
+    { ind: 'Sports Participants',         get: e => e.sports_participants },
+    { sub: '1.3 Parent Engagement' },
+    { ind: 'Household Visits',            get: e => e.hh_visits },
+    { ind: 'Parent Meetings (Total)',     get: e => e.parent_meeting_total },
+    { ind: 'Parent Mtg — Male',           get: e => e.parent_meeting_male },
+    { ind: 'Parent Mtg — Female',         get: e => e.parent_meeting_female },
+    { ind: 'Male-only Meetings',          get: e => e.male_only_meetings },
+    { sub: '1.4 Assignments &amp; Group Tasks' },
+    { ind: 'Assignments Completed',       get: e => e.assignments_completed },
+    { ind: 'Groups / Members Involved',   get: e => e.assignment_groups },
+    { section: '2. CAMPAIGNS &amp; ACTIVITIES' },
+    { ind: 'Campaigns logged',            get: e => (e.campaigns || []).length },
+    { ind: 'Campaign participants (sum)', get: e => (e.campaigns || []).reduce((s, c) => s + (c.participants || 0), 0) },
+    { section: '3. WWW – MGJ LINKAGES' },
+    { ind: 'Enabled women for WWW',       get: e => e.www_enabled_women },
+    { ind: 'WWW Enrollments',             get: e => e.www_enrollments },
+    { ind: 'GBV — # reached',             get: e => e.gbv_reached },
+    { section: "4. LEADERS' LOG" },
+    { ind: 'Community Action by Leaders', get: e => e.leader_community_actions },
+    { ind: 'Vaccinations Linked',         get: e => e.leader_vaccinations },
+    { ind: 'WWW Survey Forms Filled',     get: e => e.leader_www_forms },
+    { ind: 'Boys in Unpaid Care',         get: e => e.leader_unpaid_care_boys },
+    { ind: 'Phase Training',              get: e => e.leader_phase_training },
+    { ind: 'Refresher Training',          get: e => e.leader_refresher_training },
+    { ind: 'Synergy Meetings',            get: e => e.synergy_meetings },
+    { ind: 'Synergy Participants',        get: e => e.synergy_participants },
+    { ind: 'Monthly Leader Meetings',     get: e => e.leader_monthly_meetings },
+    { ind: 'Monthly Mtg Participants',    get: e => e.leader_monthly_participants },
+  ];
+
+  const monthHeader = FY_MONTHS.map(m => '<th>' + m.label + '<br><small style="color:#888;font-weight:normal;">' + m.q + '</small></th>').join('');
+
+  const renderRows = () => rows.map(r => {
+    if (r.section) return '<tr class="section-row"><td colspan="14">' + r.section + '</td></tr>';
+    if (r.sub) return '<tr><td class="indicator" style="background:#fafbfc;font-weight:600;color:#555;">' + r.sub + '</td>' + FY_MONTHS.map(() => '<td></td>').join('') + '<td></td></tr>';
+    const vals = cells('Delhi North', 'Delhi North 2025-28', r.get);
+    const fy = vals.reduce((s, v) => s + (Number(v) || 0), 0);
+    return '<tr><td class="indicator">' + r.ind + '</td>' +
+      vals.map(v => '<td>' + (v === '' ? '<span style="color:#ddd;">—</span>' : v) + '</td>').join('') +
+      '<td class="fy-total">' + fy + '</td></tr>';
+  }).join('');
+
+  return `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Overall Activities Report <small>One-screen donor-ready snapshot — same shape as the source MIS sheet</small></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline"><i class="fas fa-print"></i> Print</button>
+        <button class="btn btn-primary"><i class="fas fa-file-excel"></i> Download .xlsx</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group"><label>Year</label><select><option>2025-26</option><option>2024-25</option></select></div>
+        <div class="form-group"><label>Centre</label><select><option>Delhi North</option>${CENTRES.filter(c => c !== 'Delhi North').map(c => '<option>' + c + '</option>').join('')}</select></div>
+        <div class="form-group"><label>Batch</label><select><option>Delhi North 2025-28</option>${BATCHES.filter(b => b.name !== 'Delhi North 2025-28').map(b => '<option>' + esc(b.name) + '</option>').join('')}</select></div>
+      </div>
+    </div>
+
+    <div class="pivot-wrap">
+      <table class="pivot">
+        <thead>
+          <tr><th class="indicator">Indicator</th>${monthHeader}<th>FY Total</th></tr>
+        </thead>
+        <tbody>${renderRows()}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ==========================================================================
+// Other small pages
+// ==========================================================================
+
+function pageCampaigns() {
+  setCrumbs(['Home', 'Overall Activities', 'Campaigns Master']);
+  return `
+    <div class="page-header">
+      <div class="page-title">Campaigns Master <small>The list that powers the dropdown in the form. Adding here makes the campaign reusable across centres &amp; months.</small></div>
+      <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Campaign</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Campaign Name</th><th>Type</th><th>FY Total Reach</th><th>Last Used</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${CAMPAIGN_MASTER.map((c, i) => {
+            const usedIn = ENTRIES.filter(e => (e.campaigns || []).some(x => x.name === c));
+            const reach = usedIn.reduce((s, e) => s + e.campaigns.filter(x => x.name === c).reduce((s2, x) => s2 + (x.participants || 0), 0), 0);
+            return '<tr><td><strong>' + esc(c) + '</strong></td><td><span class="badge badge-info">' + (i % 3 === 0 ? 'Annual Flagship' : i % 2 === 0 ? 'External' : 'Local') + '</span></td><td>' + reach + '</td><td>' + (usedIn[0] ? mLabel(usedIn[0].month) : '—') + '</td><td><span class="badge badge-active">Active</span></td><td style="text-align:right;"><button class="btn-icon"><i class="fas fa-edit"></i></button></td></tr>';
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+function pageAudit() {
+  setCrumbs(['Home', 'Overall Activities', 'Audit Log']);
+  const audit = [
+    { ts: '23 Apr 2026, 14:21', user: 'Hari (PI)', action: 'Updated', target: 'Feb-26 / Delhi North 2025-28', what: 'pakhwada_conducted 3 → 4' },
+    { ts: '23 Apr 2026, 14:18', user: 'Hari (PI)', action: 'Created (Draft)', target: 'Feb-26 / Delhi North 2025-28', what: '— new entry —' },
+    { ts: '15 Mar 2026, 09:02', user: 'Hari (PI)', action: 'Submitted', target: 'Jan-26 / Delhi North 2025-28', what: 'locked' },
+    { ts: '12 Feb 2026, 11:40', user: 'Hari (PI)', action: 'Submitted', target: 'Dec-25 / Delhi North 2025-28', what: 'locked' },
+    { ts: '10 Jan 2026, 17:08', user: 'Rajeshwari (Admin)', action: 'Read', target: 'Q3 Pivot', what: 'donor preview' },
+  ];
+  return `
+    <div class="page-header"><div class="page-title">Audit Log <small>Full traceability of who edited what, when</small></div></div>
+    <div class="card"><div class="table-wrap"><table class="data">
+      <thead><tr><th>When</th><th>User</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+      <tbody>${audit.map(a => '<tr><td>' + a.ts + '</td><td>' + a.user + '</td><td><span class="badge badge-info">' + a.action + '</span></td><td>' + esc(a.target) + '</td><td style="color:#666;">' + esc(a.what) + '</td></tr>').join('')}</tbody>
+    </table></div></div>
+  `;
+}
+
+function pageExports() {
+  setCrumbs(['Home', 'Overall Activities', 'Exports']);
+  const items = [
+    { t: 'Overall Activities — Excel (matches source sheet shape)', d: '12 months × all indicators per centre/batch', icon: 'fa-table' },
+    { t: 'Quarterly Roll-up', d: 'Q1/Q2/Q3/Q4 totals + commentary', icon: 'fa-calendar-alt' },
+    { t: 'Annual Donor Report', d: 'Combined narrative + numbers, ready to send', icon: 'fa-file-alt' },
+    { t: 'Topic Coverage', d: 'Topics × months heat map', icon: 'fa-fire' },
+    { t: 'Campaigns Annual Reach', d: 'Per-campaign reach + partner orgs', icon: 'fa-bullhorn' },
+    { t: 'Leaders Log Export', d: 'Section 4 only — leadership outputs detail', icon: 'fa-medal' },
+  ];
+  return `
+    <div class="page-header"><div class="page-title">Exports</div></div>
+    <div class="row-3">
+      ${items.map(i => '<div class="card" style="text-align:center;"><i class="fas ' + i.icon + '" style="font-size:32px;color:var(--primary);margin-bottom:12px;"></i><div style="font-weight:600;color:var(--secondary);">' + esc(i.t) + '</div><div style="font-size:12px;color:var(--text-light);margin:8px 0 14px;">' + esc(i.d) + '</div><button class="btn btn-primary btn-sm" style="width:100%;"><i class="fas fa-download"></i> Download .xlsx</button></div>').join('')}
+    </div>
+  `;
+}
+
+// ==========================================================================
+// Util
+// ==========================================================================
+
+function goto(p) {
+  document.querySelectorAll('.nav-sub-item').forEach(n => { if (n.dataset.page === p) n.click(); });
+}
+
+// boot — open Overall Activities List by default
+render('entries');
+</script>
+</body>
+</html>
