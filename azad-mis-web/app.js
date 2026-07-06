@@ -5855,7 +5855,21 @@ function renderSurveyV2(s) {
 
   // ── GPS / Meta Footer ──
   h += '<div class="view-section" style="margin-top:10px;">';
-  h += '<h3><i class="fas fa-map-pin" style="color:#732269;"></i> GPS & Submission Info</h3>';
+  // 2026-07-06: The map-pin icon is now a link — clicking it opens Google
+  // Maps at the survey's recorded latitude/longitude in a new tab. Only
+  // rendered as a link when both coordinates exist; otherwise it stays a
+  // plain icon.
+  if (s.latitude && s.longitude) {
+    h += '<h3><a href="https://www.google.com/maps?q=' +
+         encodeURIComponent(String(s.latitude) + ',' + String(s.longitude)) +
+         '" target="_blank" rel="noopener" title="Open this location in Google Maps"' +
+         ' style="text-decoration:none;">' +
+         '<i class="fas fa-map-pin" style="color:#732269;cursor:pointer;"></i>' +
+         '</a> GPS & Submission Info' +
+         ' <span style="font-size:11px;color:#999;font-weight:normal;">(click the pin to view on map)</span></h3>';
+  } else {
+    h += '<h3><i class="fas fa-map-pin" style="color:#732269;"></i> GPS & Submission Info</h3>';
+  }
   h += '<div class="detail-grid">';
   if (s.latitude) h += di('Latitude', s.latitude);
   if (s.longitude) h += di('Longitude', s.longitude);
@@ -5933,7 +5947,20 @@ function renderSurveyV1(s) {
   h += detailItem('Comment', s.comment);
   h += '</div></div>';
   // GPS
-  h += '<div class="view-section"><h3>GPS & Meta</h3><div class="detail-grid">';
+  // 2026-07-06: same clickable map-pin as the main survey view — opens
+  // Google Maps at the recorded coordinates in a new tab.
+  h += '<div class="view-section">';
+  if (s.latitude && s.longitude) {
+    h += '<h3><a href="https://www.google.com/maps?q=' +
+         encodeURIComponent(String(s.latitude) + ',' + String(s.longitude)) +
+         '" target="_blank" rel="noopener" title="Open this location in Google Maps"' +
+         ' style="text-decoration:none;">' +
+         '<i class="fas fa-map-pin" style="color:#732269;cursor:pointer;"></i>' +
+         '</a> GPS & Meta</h3>';
+  } else {
+    h += '<h3>GPS & Meta</h3>';
+  }
+  h += '<div class="detail-grid">';
   h += detailItem('Latitude', s.latitude);
   h += detailItem('Longitude', s.longitude);
   h += detailItem('Status', s.status);
@@ -23971,7 +23998,12 @@ function _proceedEditAk(id) {
       document.getElementById('akFamilyIncome').value = m.family_monthly_income || '';
       document.getElementById('akFamilyMembers').value = m.family_members || '';
       document.getElementById('akPerCapita').value = m.per_capita_income || '';
-      if (m.photo_url) { document.getElementById('akPhotoPreview').innerHTML = '<img src="' + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'; }
+      var _pp = document.getElementById('akPhotoPreview');
+      if (_pp) {
+        _pp.innerHTML = m.photo_url
+          ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'
+          : '<i class="fas fa-camera"></i>';
+      }
     });
   }, 100);
 }
@@ -24641,9 +24673,11 @@ function loadAkDetail(id) {
       escHtml(m.centre_name || '') + ' &nbsp;|&nbsp; ' + escHtml(m.batch_name || '') + ' &nbsp;|&nbsp; ' + statusBadge(m.status);
     var wo = document.getElementById('btnAkWalkOut');
     if (wo) wo.style.display = (m.status === 'Active') ? '' : 'none';
-    if (m.photo_url) {
-      var pc = document.getElementById('akViewPhotoContainer');
-      if (pc) pc.innerHTML = '<img src="' + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">';
+    var pc = document.getElementById('akViewPhotoContainer');
+    if (pc) {
+      pc.innerHTML = m.photo_url
+        ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">'
+        : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;color:#999;"><i class="fas fa-user"></i></div>';
     }
     var bg = document.getElementById('akViewBasicGrid');
     if (bg) {
@@ -36335,58 +36369,21 @@ function resetMgjAssessmentFilters() {
 // current filters at a high limit and turns it into a CSV file the
 // browser downloads. Avoids adding a new backend endpoint.
 function exportMgjAssessmentToExcel() {
+  // 2026-07-06: Was a client-side CSV blob with ONLY 12 summary columns
+  // (no responses) saved as mgj-assessments-<date>.csv. Now hits the backend
+  // /mgj-assessments/export/excel, which returns a real .xlsx with merged
+  // Baseline/Midline/Endline group banners and every filled answer in
+  // phase-labelled columns. Same filter params; backend reuses the grouped
+  // list query so State->Centre cascade, Type, Status, Name + role scope all
+  // apply exactly like the on-screen list.
   var v = function(id) { var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
-  var params = { limit: 5000, page: 1 };
-  if (v('mgjAsFilterState'))  params.state_code      = v('mgjAsFilterState');
-  if (v('mgjAsFilterCentre')) params.centre_code     = v('mgjAsFilterCentre');
-  if (v('mgjAsFilterType'))   params.assessment_type = v('mgjAsFilterType');
-  if (v('mgjAsFilterStatus')) params.status          = v('mgjAsFilterStatus');
-  if (v('mgjAsFilterName'))   params.member_name     = v('mgjAsFilterName');
-
-  apiMgjAssessmentGrouped(params).then(function(resp) {
-    var rows = resp.data || [];
-    if (!rows.length) { alert('No assessments to export for the current filters.'); return; }
-    var header = ['S.No','Member Name','Enrollment No.','Centre','State',
-                  'Baseline Date','Baseline Status',
-                  'Midline Date','Midline Status',
-                  'Endline Date','Endline Status',
-                  'Overall Status'];
-    function esc(v) {
-      if (v == null) return '';
-      var s = String(v);
-      // Quote and escape any double-quotes for CSV.
-      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-    }
-    function fmtDate(d) { return d ? new Date(d).toISOString().slice(0,10) : ''; }
-    var lines = [header.map(esc).join(',')];
-    rows.forEach(function(r, i) {
-      var overall =
-        (r.endline_status === 'Submitted') ? 'Completed' :
-        // AK parity: do not surface 'Draft' in the export — treat as Not Started.
-        (r.baseline_status === 'Submitted' && r.midline_status === 'Submitted') ? 'Pending Endline' :
-        (r.baseline_status === 'Submitted') ? 'Pending Midline' :
-        'Not Started';
-      lines.push([
-        i + 1,
-        r.member_name || '',
-        r.enrollment_number || '',
-        r.centre_name || '',
-        r.state_name || '',
-        fmtDate(r.baseline_date), r.baseline_status || '',
-        fmtDate(r.midline_date),  r.midline_status  || '',
-        fmtDate(r.endline_date),  r.endline_status  || '',
-        overall
-      ].map(esc).join(','));
-    });
-    // BOM so Excel auto-detects UTF-8 + emoji-safe.
-    var blob = new Blob(['﻿' + lines.join('\r\n')], {type: 'text/csv;charset=utf-8;'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    var stamp = new Date().toISOString().slice(0,10);
-    a.href = url; a.download = 'mgj-assessments-' + stamp + '.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-  }).catch(function(err) { showUserError('exporting MGJ assessments', err); });
+  var qs = [];
+  if (v('mgjAsFilterState'))  qs.push('state_code='      + encodeURIComponent(v('mgjAsFilterState')));
+  if (v('mgjAsFilterCentre')) qs.push('centre_code='     + encodeURIComponent(v('mgjAsFilterCentre')));
+  if (v('mgjAsFilterType'))   qs.push('assessment_type=' + encodeURIComponent(v('mgjAsFilterType')));
+  if (v('mgjAsFilterStatus')) qs.push('status='          + encodeURIComponent(v('mgjAsFilterStatus')));
+  if (v('mgjAsFilterName'))   qs.push('member_name='     + encodeURIComponent(v('mgjAsFilterName')));
+  window.location.href = API_BASE + '/mgj-assessments/export/excel' + (qs.length ? '?' + qs.join('&') : '');
 }
 
 // Populate State / District / Centre dropdowns across the filter row AND
