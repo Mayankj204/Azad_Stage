@@ -1,12 +1,13 @@
 """MGJ (Men with Gender Justice) module routes."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from typing import Optional, Any, Dict
 from pydantic import BaseModel
 from psycopg2.extras import Json
-import sys, os, io, csv
+import sys, os, io, csv, uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import get_cursor
+from config import UPLOAD_DIR
 
 router = APIRouter(prefix="/api/mgj", tags=["MGJ"])
 
@@ -195,6 +196,19 @@ def list_mgj(state_code: Optional[str] = None, district_code: Optional[str] = No
 def export_mgj(state_code: Optional[str] = None, district_code: Optional[str] = None,
                centre_code: Optional[str] = None,
                name: Optional[str] = None, status: Optional[str] = None):
+    # 2026-07-06: Export rewritten — two reported problems:
+    #   1) "State" came out blank/misplaced. The old query resolved state
+    #      through the district chain (m.district_code → mgj_districts →
+    #      mgj_states), but the registration form doesn't capture a
+    #      district at all (State → Centre → Area cascade only), so
+    #      district_code is NULL for every member and the state join
+    #      never matched. Fixed by joining mgj_states DIRECTLY on
+    #      m.state_code — the same pattern get_mgj / list_mgj use.
+    #   2) The old export had only 13 columns (including the legacy
+    #      "Occupation" field the form no longer collects). Now exports
+    #      the full registration field set in the same order as the
+    #      Add-MGJ form / member View page, plus Centre/Area/Batch names
+    #      and an aggregated Education History column.
     with get_cursor() as cur:
         conditions = ["m.deleted_at IS NULL"]
         params = []
@@ -206,25 +220,65 @@ def export_mgj(state_code: Optional[str] = None, district_code: Optional[str] = 
         where = " AND ".join(conditions)
 
         cur.execute(f"""
-            SELECT m.*, COALESCE(nd.district_name, '') as district_name,
-                   COALESCE(ns.state_name, '') as state_name
+            SELECT m.*,
+                   COALESCE(ns.state_name,  '') as state_name,
+                   COALESCE(nc.centre_name, '') as centre_name,
+                   COALESCE(na.area_name,   '') as area_name,
+                   COALESCE(b.name,         '') as batch_name,
+                   (SELECT string_agg(eh.year || ' - ' ||
+                                      COALESCE(NULLIF(eh.qualification_other, ''), eh.qualification),
+                                      '; ' ORDER BY eh.year)
+                      FROM mgj_member_education_history eh
+                     WHERE eh.member_id = m.id AND eh.deleted_at IS NULL) as education_history
             FROM mgj_members m
-            LEFT JOIN mgj_districts nd ON m.district_code = nd.district_code AND nd.deleted_at IS NULL
-            LEFT JOIN mgj_states    ns ON nd.state_code   = ns.state_code    AND ns.deleted_at IS NULL
+            LEFT JOIN mgj_states         ns ON m.state_code  = ns.state_code  AND ns.deleted_at IS NULL
+            LEFT JOIN mgj_centres        nc ON m.centre_code = nc.centre_code AND nc.deleted_at IS NULL
+            LEFT JOIN mgj_areas          na ON m.area_code   = na.area_code   AND na.deleted_at IS NULL
+            LEFT JOIN mgj_master_batches b  ON m.batch_id    = b.id           AND b.deleted_at  IS NULL
             WHERE {where} ORDER BY m.id DESC
         """, params)
         rows = cur.fetchall()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Enrollment No.', 'Name', 'Mobile', 'District', 'State', 'Group', 'Status',
-                     'DOB', 'Education', 'Occupation', 'Caste', 'Religion', 'Created'])
+    writer.writerow([
+        'Enrollment No.', 'Status', 'State', 'Centre', 'Area', 'Batch', 'Group Number',
+        'Name', 'Date of Birth', 'Age at Enrollment', 'Address', 'Mobile Number',
+        'Caste Category', 'Community (Religion)', 'Gender',
+        'Social Media Account', 'Social Media Details',
+        'Marital Status', 'Age at Marriage', 'Number of Children',
+        'Family Members Count', 'Earning Members', 'Monthly Family Income', 'Per Capita Income',
+        'Women Below 18', 'Men Below 18', 'Women Above 18', 'Men Above 18',
+        'Women Associated with Azad', 'Women Member Relation',
+        'Men Associated with Azad', 'Men Member Relation',
+        'Year of Qualification', 'Education Qualification', 'Education (Other)',
+        'Still Studying', 'Education History',
+        'Are You Working', 'Work Nature', 'Work Place', 'Monthly Income (Self)',
+        'Future Goal / Aspiration',
+        'Walkout Date', 'Walkout Reason', 'Created'
+    ])
     for r in rows:
-        writer.writerow([r['enrollment_number'], r['name'], r['mobile'] or '',
-                         r['district_name'], r['state_name'], r['group_number'] or '',
-                         r['status'], r.get('date_of_birth') or '', r.get('education') or '',
-                         r.get('occupation') or '', r.get('caste_category') or '',
-                         r.get('community_religion') or '', str(r['created_at'])[:10]])
+        def _g(key):
+            v = r.get(key)
+            return '' if v is None else str(v)
+        writer.writerow([
+            _g('enrollment_number'), _g('status'),
+            r['state_name'], r['centre_name'], r['area_name'], r['batch_name'], _g('group_number'),
+            _g('name'), _g('date_of_birth'), _g('age_at_enrollment'), _g('address'), _g('mobile'),
+            _g('caste_category'), _g('community_religion'), _g('gender'),
+            _g('social_media_account'), _g('social_media_details'),
+            _g('marital_status'), _g('age_at_marriage'), _g('number_of_children'),
+            _g('family_members_count'), _g('earning_members'),
+            _g('monthly_family_income'), _g('per_capita_income'),
+            _g('women_below_18'), _g('men_below_18'), _g('women_above_18'), _g('men_above_18'),
+            _g('women_in_azad'), _g('women_in_azad_relation'),
+            _g('men_in_azad'), _g('men_in_azad_relation'),
+            _g('education_year'), _g('education'), _g('education_other'),
+            _g('still_studying'), _g('education_history'),
+            _g('is_working'), _g('work_nature'), _g('work_place'), _g('monthly_income'),
+            _g('future_goal'),
+            _g('walkout_date'), _g('walkout_reason'), str(r['created_at'])[:10]
+        ])
     from datetime import date
     from export_helper import csv_string_to_xlsx_response
     return csv_string_to_xlsx_response(output.getvalue(), f"MGJ_List_Export_{date.today().isoformat()}.xlsx")
@@ -408,3 +462,36 @@ def walkout_mgj(mgj_id: int, data: MGJWalkoutRequest):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="MGJ member not found")
     return {"message": "MGJ member marked as dropout"}
+
+
+# ── Photo Upload ─────────────────────────────────────────────────────────
+# 2026-07-06: The MGJ member photo feature was half-built — the
+# mgj_members.photo_url column existed and the edit form let the user pick
+# a file (previewed locally via FileReader), but NOTHING ever uploaded or
+# persisted it, so photo_url stayed NULL in the DB. This endpoint mirrors
+# the working FLP (routes/flps.py upload_photo) and AK (routes/ak.py)
+# patterns exactly: save under UPLOAD_DIR, persist the URL-RELATIVE
+# /uploads/... path (never the filesystem path — see the flp_documents
+# comment in flps.py for the 404 that caused).
+
+@router.post("/{mgj_id}/photo")
+async def upload_photo(mgj_id: int, file: UploadFile = File(...)):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    saved_name = f"mgj_photo_{mgj_id}_{uuid.uuid4()}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, saved_name)
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    photo_url = f"/uploads/{saved_name}"
+    with get_cursor() as cur:
+        cur.execute("""
+            UPDATE mgj_members SET photo_url = %s, updated_at = NOW()
+             WHERE id = %s AND deleted_at IS NULL RETURNING id
+        """, (photo_url, mgj_id))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="MGJ member not found")
+    return {"photo_url": photo_url}

@@ -117,6 +117,25 @@ def _validate(body: MonthlyActivityCreate):
         raise HTTPException(status_code=400, detail="Batch is required")
     if body.status and body.status not in ("Draft", "Submitted"):
         raise HTTPException(status_code=400, detail="Invalid status (must be Draft or Submitted)")
+    # 2026-07-06: Batch ↔ Centre consistency guard. The frontend previously
+    # loaded ALL batches (every state) into the form for admin roles with no
+    # Centre→Batch cascade, which let cross-state combos through — stage data
+    # had 6 rows like Centre=Chennai with an East Delhi batch. The cascade is
+    # now fixed in the UI, but the API must enforce it too so a stale tab or
+    # crafted request can't reintroduce mismatched rows. Runs on both POST
+    # and PUT (both call _validate).
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT centre_code FROM mgj_master_batches WHERE id = %s AND deleted_at IS NULL",
+            (body.batch_id,))
+        b = cur.fetchone()
+    if not b:
+        raise HTTPException(status_code=400, detail="Selected Batch does not exist")
+    if b["centre_code"] and b["centre_code"] != body.centre_code:
+        raise HTTPException(
+            status_code=400,
+            detail="Selected Batch does not belong to the selected Centre. "
+                   "Please pick a Batch mapped to this Centre in Batch Management.")
     return month_iso
 
 
