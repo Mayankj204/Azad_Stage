@@ -985,3 +985,262 @@ def get_assessment(assessment_id: int):
         member = _fetch_member(cur, a["member_id"]) if a["member_id"] else None
         family = _fetch_family_members(cur, assessment_id)
     return {"assessment": a, "member": member, "family_members": family}
+
+
+# =============================================================================
+# Export (xlsx)
+# =============================================================================
+# 2026-07-06: Replaces the frontend's client-side CSV blob export
+# (mgj-assessments-<date>.csv), which had two problems: (1) it exported only
+# the 12 summary columns — none of the actual assessment RESPONSES the
+# members filled — and (2) it produced a .csv, not .xlsx. This endpoint
+# reuses list_assessments_grouped for the member set, so every list filter
+# (State/Centre cascade, Type, Status, Name) and the caller's role scope
+# apply to the export exactly as they do on screen. Each latest
+# Baseline/Midline/Endline assessment becomes ONE ROW with the member's
+# identity, assessment meta, and ALL q1..q51 responses flattened into
+# labelled columns (multi-select answers joined with "; ").
+#
+# Question labels below are extracted from the frontend bank
+# (app.js → MGJ_AF_QUESTIONS) — qids are the storage identity and stay
+# stable; if a label is reworded in the form, refresh it here too. Any qid
+# found in responses but missing from this dict is appended as a raw
+# trailing column so no filled answer is ever dropped.
+
+MGJ_AS_Q_LABELS = {
+    "q1": "Q1. Consent",
+    "q2": "Q2. Name of the Surveyor",
+    "q3": "Q3. Name of the Participant",
+    "q4": "Q4. Status in the MGJ Program",
+    "q5": "Q5. What is your current age?",
+    "q6": "Q6. Which City do you live in?",
+    "q7": "Q7. Which Locality / Area do you live in?",
+    "q8": "Q8. Marital Status",
+    "q8a": "Q8a. Specify, if other",
+    "q9": "Q9. Education Status",
+    "q9a": "Q9a. Specify, if other",
+    "q10": "Q10. Current Occupation / Activity",
+    "q10a": "Q10a. Specify, if other",
+    "q11": "Q11. Total Members in Family (Including You)",
+    "q12": "Q12. Monthly Family Income",
+    "q13": "Q13. Human Rights are…?",
+    "q14": "Q14. Which of these best explains the difference between sex and gender?",
+    "q15": "Q15. Which of these best explains patriarchy?",
+    "q16": "Q16. Which of these is an example of toxic masculinity?",
+    "q17": "Q17. In your home, who usually does cooking, cleaning, childcare?",
+    "q18": "Q18. Which of the following are forms of violence against women?",
+    "q19": "Q19. In your community, when wife disagrees with husband, what usually happens?",
+    "q20": "Q20. Girl's education is as important as boy's.",
+    "q21": "Q21. Should men always be the ones earning for the family?",
+    "q22": "Q22. Men should not show emotions like sadness or fear.",
+    "q23": "Q23. It is acceptable for a husband to beat wife if she disobeys.",
+    "q24": "Q24. Household chores are mainly a woman's responsibility.",
+    "q25": "Q25. Women can also do jobs like bus driver, chauffeur, mechanic, electrician, plumber, etc.",
+    "q26": "Q26. Men should ask for consent before touching wife / girlfriend.",
+    "q27": "Q27. It is acceptable for a man to love another man or a woman to love another woman.",
+    "q28": "Q28. If your friend says girls shouldn't study after class 10, what would you do?",
+    "q29": "Q29. In your opinion, which group of people loses their lives more often because of risky behaviours like rash driving, stunts, fights, or drinking too much alcohol?",
+    "q30": "Q30. When a girl says NO, it means…",
+    "q31": "Q31. What is the best way to understand and control your emotions?",
+    "q32": "Q32. If you fail an exam and feel angry, what do you do?",
+    "q33": "Q33. Friend looks sad and quiet — what do you do?",
+    "q34": "Q34. How much time did you spend on household chores in the last 24 hours?",
+    "q35": "Q35. How often do you help with household chores?",
+    "q36": "Q36. Which chores did you do in the past week?",
+    "q37": "Q37. How many times did you help with chores in the last 7 days?",
+    "q38": "Q38. When you feel angry, what do you usually do?",
+    "q39": "Q39. Did you witness violence in the last 6 months?",
+    "q40": "Q40. If Yes, what kind of violence did you witness?",
+    "q41": "Q41. If Yes, what did you do?",
+    "q42": "Q42. We should encourage a female sibling / friend to study / take a non-traditional job.",
+    "q43": "Q43. How often do you talk about respecting women / girls?",
+    "q44": "Q44. Paresh is a 16-year-old boy. His voice is softer than most boys his age, and he walks a little differently. One day his friend Ramesh tells him in front of everyone, \"You are not a real man. You should talk and walk like other boys.\" What do you think should happen?",
+    "q45": "Q45. Deepak is hanging out with his friends after school. His friends start smoking and drinking and tell Deepak, \"If you are a real man, you should do it too. Otherwise, we won't include you in our group.\" What do you think Deepak should do?",
+    "q46": "Q46. Amit is 15 years old and enjoys wearing colourful clothes, putting on makeup, and dancing at school functions. Some of his classmates laugh at him and say he should behave like a boy. What do you think should happen?",
+    "q47": "Q47. Ramesh tells his close friend Mahesh that he likes a boy in his class. Mahesh feels shocked, tells Ramesh that this is wrong, and stops talking to him. What do you think should happen?",
+    "q48": "Q48. In the past 3 months, have you participated in any gender-equality discussions, campaigns, or activities?",
+    "q49": "Q49. How often do you stop or say something when your friends make bad jokes about women?",
+    "q50": "Q50. In the last month, did you hear of anyone in your community making fun of a girl / woman?",
+    "q51": "Q51. If you heard someone making fun of a girl, what did you do?",
+}
+
+
+def _mgj_as_natural_qid_key(qid: str):
+    import re as _re
+    m = _re.match(r'q(\d+)([a-z]*)', qid)
+    if not m:
+        return (10**9, qid)
+    return (int(m.group(1)), m.group(2))
+
+
+# Short question labels for the phase-grouped export sheet — mirror the AK/FLP
+# "Assessment" sheet style (concise column names under a merged phase banner)
+# rather than the full question text. qid → short label. Any qid missing here
+# falls back to the full MGJ_AS_Q_LABELS text, then to the raw qid.
+MGJ_AS_Q_SHORT = {
+    'q3': 'Participant Name', 'q4': 'Program Status', 'q5': 'Age',
+    'q6': 'City', 'q7': 'Locality / Area',
+    'q8': 'Marital Status', 'q8a': 'Marital (Other)',
+    'q9': 'Education', 'q9a': 'Education (Other)',
+    'q10': 'Occupation', 'q10a': 'Occupation (Other)',
+    'q11': 'Family Members', 'q12': 'Monthly Family Income',
+    'q13': 'Human Rights are…?', 'q14': 'Sex vs Gender',
+    'q15': 'Patriarchy meaning', 'q16': 'Toxic masculinity example',
+    'q17': 'Who does housework', 'q18': 'Forms of violence',
+    'q19': 'Wife disagrees — outcome',
+    'q20': "Girl's education = boy's", 'q21': 'Men should earn',
+    'q22': "Men shouldn't show emotion", 'q23': 'Husband may beat wife',
+    'q24': "Chores are woman's job", 'q25': 'Women in non-traditional jobs',
+    'q26': 'Consent before touching', 'q27': 'Same-sex love acceptable',
+    'q28': "Friend: girls shouldn't study",
+    'q29': 'Risky behaviour — who dies more', 'q30': 'Girl says NO means',
+    'q31': 'Control your emotions', 'q32': 'Fail exam & angry',
+    'q33': 'Sad friend response', 'q34': 'Time on chores (24h)',
+    'q35': 'How often help chores', 'q36': 'Chores done past week',
+    'q37': 'Times helped (7d)', 'q38': 'When angry, you…',
+    'q39': 'Witnessed violence (6m)', 'q40': 'Kind of violence',
+    'q41': 'What you did', 'q42': 'Encourage female sibling/friend',
+    'q43': 'Talk about respecting women', 'q44': 'Paresh vignette',
+    'q45': 'Deepak vignette', 'q46': 'Amit vignette', 'q47': 'Ramesh vignette',
+    'q48': 'Gender-equality participation', 'q49': 'Stop bad jokes about women',
+    'q50': 'Heard mocking of girl/woman', 'q51': 'What you did (mocking)',
+    'q1': 'Consent', 'q2': 'Surveyor Name',
+}
+
+
+@router.get("/export/excel")
+def export_assessments(request: Request,
+                       state_code: Optional[str] = None,
+                       district_code: Optional[str] = None,
+                       centre_code: Optional[str] = None,
+                       member_name: Optional[str] = None,
+                       assessment_type: Optional[str] = None,
+                       status: Optional[str] = None):
+    """MGJ Assessment export — single 'Assessment' sheet, one row per member,
+    with merged colored group banners for Baseline / Midline / Endline (the
+    same visual layout as the FLP/AK 'Pre-Training / Post-Training' export the
+    user shared, extended to three phases). Each phase group repeats the same
+    short question columns. Same member set + filters + role scope as the
+    on-screen list (via list_assessments_grouped)."""
+    from datetime import date as _date
+    from export_helper import multi_sheet_xlsx_response_v2
+    import json as _json
+
+    grouped = list_assessments_grouped(
+        request, state_code=state_code, district_code=district_code,
+        centre_code=centre_code, member_name=member_name,
+        assessment_type=assessment_type, status=status,
+        page=1, limit=100000)
+    members = grouped["data"]
+
+    # Respect the Type filter: chosen phase → only that group; else all three.
+    want = (assessment_type or '').strip().lower()
+    phase_defs = [('Baseline', 'baseline_id'),
+                  ('Midline',  'midline_id'),
+                  ('Endline',  'endline_id')]
+    active_phases = [p for p in phase_defs if not want or want == p[0].lower()]
+
+    # Fetch response records for the active phases in one query.
+    all_ids = []
+    for m in members:
+        for _pn, idcol in active_phases:
+            if m.get(idcol):
+                all_ids.append(m[idcol])
+    responses_by_id = {}
+    if all_ids:
+        with get_cursor() as cur:
+            cur.execute("""
+                SELECT id, assessment_type, status, assessment_date,
+                       submitted_at, responses
+                FROM mgj_assessments WHERE id = ANY(%s)
+            """, (all_ids,))
+            for r in cur.fetchall():
+                responses_by_id[r["id"]] = r
+
+    # Column (question) set: union of qids present across active phases, in
+    # natural order; unknowns appended raw. Each qid is emitted once PER phase.
+    present = set()
+    for r in responses_by_id.values():
+        present.update((r.get("responses") or {}).keys())
+    known = [q for q in sorted(MGJ_AS_Q_LABELS.keys(), key=_mgj_as_natural_qid_key) if q in present]
+    extra = sorted([q for q in present if q not in MGJ_AS_Q_LABELS], key=_mgj_as_natural_qid_key)
+    qcols = known + extra
+
+    def _short(q):
+        return MGJ_AS_Q_SHORT.get(q) or MGJ_AS_Q_LABELS.get(q) or q
+
+    def _fmt_answer(v):
+        if v is None:
+            return ''
+        if isinstance(v, list):
+            return '; '.join(str(x) for x in v)
+        if isinstance(v, dict):
+            return _json.dumps(v, ensure_ascii=False)
+        return str(v)
+
+    base_headers = ['S.No', 'Member Name', 'Enrollment No.', 'Location (Centre, State)',
+                    'Batch', 'Baseline Date', 'Midline Date', 'Endline Date', 'Status']
+    # Flat header row: base + short question labels repeated once per phase.
+    # 2026-07-06 (v4): each question column header now ALSO carries its phase
+    # name, e.g. "Human Rights are…? (Baseline)", in addition to the merged
+    # colored banner above it. This makes the phase unmistakable even when
+    # reading a single column or when the banner scrolls out of view.
+    q_labels = [_short(q) for q in qcols]
+    headers = list(base_headers)
+    for pn, _ in active_phases:
+        headers += [f'{lbl} ({pn})' for lbl in q_labels]
+
+    # Group banner row (1-based col spans), one colored band per phase.
+    group_headers = []
+    n_base = len(base_headers)
+    n_q = len(qcols)
+    cursor_col = n_base + 1
+    for pn, _ in active_phases:
+        start = cursor_col
+        end = start + n_q - 1
+        group_headers.append((start, end, pn))
+        cursor_col = end + 1
+
+    # Build one row per member.
+    members_sorted = sorted(members, key=lambda m: (m.get('member_name') or '').lower())
+    rows = []
+    sno = 0
+    for m in members_sorted:
+        phase_rec = {}
+        for pn, idcol in active_phases:
+            rid = m.get(idcol)
+            phase_rec[pn] = responses_by_id.get(rid) if rid else None
+        if not any(phase_rec.values()):
+            continue
+        sno += 1
+        loc = ', '.join([x for x in [m.get('centre_name'), m.get('state_name')] if x])
+        # Overall status mirrors the on-screen grouped logic.
+        bl = m.get('baseline_status'); ml = m.get('midline_status'); el = m.get('endline_status')
+        if el == 'Submitted':
+            overall = 'Completed'
+        elif bl == 'Submitted' and ml == 'Submitted':
+            overall = 'Pending Endline'
+        elif bl == 'Submitted':
+            overall = 'Pending Midline'
+        else:
+            overall = 'Not Started'
+        row = [sno, m.get('member_name') or '', m.get('enrollment_number') or '', loc,
+               m.get('batch_name') or '',
+               str((phase_rec.get('Baseline') or {}).get('assessment_date') or '')[:10]
+                   if phase_rec.get('Baseline') else '',
+               str((phase_rec.get('Midline') or {}).get('assessment_date') or '')[:10]
+                   if phase_rec.get('Midline') else '',
+               str((phase_rec.get('Endline') or {}).get('assessment_date') or '')[:10]
+                   if phase_rec.get('Endline') else '',
+               overall]
+        for pn, _ in active_phases:
+            r = phase_rec.get(pn)
+            resp = (r or {}).get('responses') or {}
+            for q in qcols:
+                row.append(_fmt_answer(resp.get(q)))
+        rows.append(row)
+
+    sheet = {'name': 'Assessment', 'group_headers': group_headers,
+             'headers': headers, 'rows': rows}
+    fname = f"MGJ_Assessments_Export_{_date.today().isoformat()}.xlsx"
+    return multi_sheet_xlsx_response_v2([sheet], fname)
