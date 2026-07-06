@@ -34140,6 +34140,10 @@ function _mgjActPopulateBatchFilters() {
   // valid filter state); they narrow via their own cascade handlers.
   ['mgjActFilterBatch','mgjPivotBatch'].forEach(function(id) {
     var sel = document.getElementById(id); if (!sel) return;
+    // 2026-07-06 (v2): skip selects the Centre→Batch cascade is managing —
+    // a centre-scoped-but-empty list must not be refilled unscoped when
+    // this populate re-runs on form-open / pivot-open.
+    if (sel.dataset.actScoped) return;
     if (sel.options.length > 1) return;
     apiGet('/mgj-master/dropdown/batches').then(function(resp) {
       var rows = (resp && resp.data) ? resp.data : (resp || []);
@@ -34519,6 +34523,11 @@ function _mgjActRescopeBatch(selId, centreCode, defaultLabel, cb) {
   if (!sel) { if (cb) cb(); return; }
   var prev = sel.value;
   sel.innerHTML = '<option value="">' + escHtml(defaultLabel || 'All Batches') + '</option>';
+  // 2026-07-06 (v2): same scope-marker pattern as the Leader Training
+  // cascade — a centre-scoped list that is legitimately EMPTY (centre has
+  // no batches) must not be clobbered back to all-states by the unscoped
+  // populate that runs on form-open / pivot-open.
+  if (centreCode) { sel.dataset.actScoped = '1'; } else { delete sel.dataset.actScoped; }
   // Build the scope: explicit centre wins; otherwise fall back to the
   // user's role floor (PI/DL → their centre, SL → their state, admin →
   // unscoped) so the FILTER selects still show a sensible "all" list
@@ -41080,7 +41089,11 @@ function _mgjLtFillBatchDropdown(selectId, defaultLabel) {
   // batches table will show '—' in the list/view (data is still in
   // the DB but the JOIN no longer resolves a name).
   var sel = document.getElementById(selectId);
-  if (!sel || sel.options.length > 1) return;
+  // 2026-07-06 (v2): dataset.ltScoped is set by _mgjLtRescopeLeaderBatch when
+  // the list is state-scoped. A scoped-but-empty list has only the
+  // placeholder, so the options-length guard alone would let this unscoped
+  // fill clobber it with every state's batches on the next list load.
+  if (!sel || sel.options.length > 1 || sel.dataset.ltScoped) return;
   apiGet('/mgj-master/dropdown/leader-batches').then(function(rows) {
     var list = (rows && rows.data) ? rows.data : rows;
     sel.innerHTML = '<option value="">' + (defaultLabel || 'All Leader Batches') + '</option>';
@@ -41097,6 +41110,9 @@ function resetMgjLtFilters() {
   ['mgjLtFilterState','mgjLtFilterBatch','mgjLtFilterPhase','mgjLtFilterName'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.value = '';
   });
+  // 2026-07-06: State is back at "All States" — widen the Batch options
+  // back to the full list (they may be narrowed from a prior cascade).
+  _mgjLtRescopeLeaderBatch('mgjLtFilterBatch', '', 'All Leader Batches');
   loadMgjLtList(1);
 }
 
@@ -41162,22 +41178,70 @@ function openMgjAddTraining() {
   } else {
     _mgjFillStateDropdown('mgjLtFormState', '-- Select --');
   }
-  _mgjLtFillBatchDropdown('mgjLtFormBatch', '-- Select --');
+  // 2026-07-06: force-refill via the rescope helper (the old fill's
+  // options-length guard skipped refills on repeat opens, leaving a
+  // stale scope from the previous visit). Unscoped until a State is
+  // picked; the State cascade narrows it.
+  _mgjLtRescopeLeaderBatch('mgjLtFormBatch', '', '-- Select --');
   _mgjLtFillTopicChecklist();
 }
 
-function onMgjLtFormStateChange() {
-  // Filter the batch dropdown by selected state, but keep "Select" placeholder.
-  var sc = (document.getElementById('mgjLtFormState') || {}).value;
-  var sel = document.getElementById('mgjLtFormBatch');
-  sel.innerHTML = '<option value="">-- Select --</option>';
-  apiGet('/mgj-master/dropdown/batches' + (sc ? '?state_code=' + encodeURIComponent(sc) : '')).then(function(rows) {
-    (rows || []).forEach(function(b) {
+// 2026-07-06: Shared State → Leader-Batch rescope for the Leader Training
+// page (list filter, Add form, Edit modal). Always refills from
+// /mgj-master/dropdown/leader-batches scoped to the given state, preserving
+// the current selection when it survives the re-scope. Replaces the old
+// pattern where the dropdown was filled ONCE with every state's leader
+// batches and never narrowed — picking State=West Bengal still showed
+// Delhi leader batches, and choosing one returned 0 rows.
+function _mgjLtRescopeLeaderBatch(selId, stateCode, defaultLabel, cb) {
+  var sel = document.getElementById(selId);
+  if (!sel) { if (cb) cb(); return; }
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">' + escHtml(defaultLabel || 'All Leader Batches') + '</option>';
+  // 2026-07-06 (v2): mark the select as scope-managed. _mgjLtFillBatchDropdown's
+  // "already has options" guard passes when a scoped list is legitimately
+  // EMPTY (e.g. Tamil Nadu has no leader batches → only the placeholder
+  // remains), so the next loadMgjLtList refilled it with every state's
+  // batches — exactly the bug this cascade was meant to fix. The marker
+  // tells the plain fill to keep its hands off; it's cleared when the
+  // scope goes back to "all" (empty stateCode), which is equivalent to
+  // the plain fill's own result.
+  if (stateCode) { sel.dataset.ltScoped = '1'; } else { delete sel.dataset.ltScoped; }
+  var qs = stateCode ? '?state_code=' + encodeURIComponent(stateCode) : '';
+  apiGet('/mgj-master/dropdown/leader-batches' + qs).then(function(rows) {
+    var list = (rows && rows.data) ? rows.data : rows;
+    var s2 = document.getElementById(selId);
+    if (!s2) { if (cb) cb(); return; }
+    (list || []).forEach(function(b) {
       var opt = document.createElement('option');
       opt.value = b.id; opt.textContent = b.name + (b.year ? ' (' + b.year + ')' : '');
-      sel.appendChild(opt);
+      s2.appendChild(opt);
     });
+    if (prev && s2.querySelector('option[value="' + prev + '"]')) s2.value = prev;
+    if (cb) cb();
+  }).catch(function() { if (cb) cb(); });
+}
+
+// List-filter cascade: State change re-scopes the Batch filter, then the
+// list reloads (index.html onchange now points here instead of straight
+// at loadMgjLtList).
+function onMgjLtFilterStateChange() {
+  var sc = (document.getElementById('mgjLtFilterState') || {}).value || '';
+  _mgjLtRescopeLeaderBatch('mgjLtFilterBatch', sc, 'All Leader Batches', function() {
+    loadMgjLtList(1);
   });
+}
+
+function onMgjLtFormStateChange() {
+  // 2026-07-06: BUG FIX — this handler previously fetched
+  // /mgj-master/dropdown/batches (the REGULAR MGJ batches master) instead
+  // of /dropdown/leader-batches. Per the 2026-06-09 migration note, the
+  // Leader Training batch_id column points at mgj_master_leader_batches —
+  // so picking a State here filled the dropdown with regular-batch ids,
+  // and saving stored an id from the wrong table (renders as '—' in the
+  // list, or silently collides with an unrelated leader batch's id).
+  var sc = (document.getElementById('mgjLtFormState') || {}).value || '';
+  _mgjLtRescopeLeaderBatch('mgjLtFormBatch', sc, '-- Select --');
 }
 
 function _mgjLtFillTopicChecklist(selectedIds) {
@@ -41338,7 +41402,7 @@ function _renderMgjLtView() {
   var headerControls = ro
     ? '' // edit mode triggers separate input fields below
     : '<div class="form-grid" style="margin-bottom:14px;">' +
-        '<div class="form-group"><label>State</label><select id="mgjVtEditState"><option value="">Select</option></select></div>' +
+        '<div class="form-group"><label>State</label><select id="mgjVtEditState" onchange="onMgjVtEditStateChange()"><option value="">Select</option></select></div>' +
         '<div class="form-group"><label>Leader Batch</label><select id="mgjVtEditBatch"><option value="">Select</option></select></div>' +
         '<div class="form-group"><label>Phase</label><select id="mgjVtEditPhase"><option value="">Select</option><option' + (t.phase==='Phase I'?' selected':'') + '>Phase I</option><option' + (t.phase==='Phase II'?' selected':'') + '>Phase II</option></select></div>' +
         '<div class="form-group"><label>Year</label><input id="mgjVtEditYear" type="text" value="' + escHtml(t.year || '') + '"></div>' +
@@ -41396,12 +41460,25 @@ function _renderMgjLtView() {
         });
       }
     }, 200);
-    _mgjLtFillBatchDropdown('mgjVtEditBatch', '-- Select --');
-    setTimeout(function() {
+    // 2026-07-06: Batch list is now scoped to the record's State (was an
+    // unscoped all-states fill), and the value is applied via the rescope
+    // callback instead of a racy 250ms timeout. For legacy rows whose
+    // batch belongs to a different state, the batch won't be in the
+    // scoped list — the field shows the placeholder and the user must
+    // pick a valid leader batch to save.
+    _mgjLtRescopeLeaderBatch('mgjVtEditBatch', t.state_code || '', '-- Select --', function() {
       var bSel = document.getElementById('mgjVtEditBatch');
       if (bSel && t.batch_id) bSel.value = String(t.batch_id);
-    }, 250);
+    });
   }
+}
+
+// 2026-07-06: State change on the Edit Training modal re-scopes the Leader
+// Batch dropdown (previously no cascade at all — admin could move a
+// training to West Bengal while keeping a Delhi leader batch selected).
+function onMgjVtEditStateChange() {
+  var sc = (document.getElementById('mgjVtEditState') || {}).value || '';
+  _mgjLtRescopeLeaderBatch('mgjVtEditBatch', sc, '-- Select --');
 }
 
 function submitMgjLtUpdate() {
