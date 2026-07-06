@@ -11466,7 +11466,7 @@
             <option value="12">December</option>
           </select>
         </div>
-        <div class="filter-group"><label>Centre</label><select id="mgjActFilterCentre"><option value="">All Centres</option></select></div>
+        <div class="filter-group"><label>Centre</label><select id="mgjActFilterCentre" onchange="onMgjActFilterCentreChange()"><option value="">All Centres</option></select></div>
         <div class="filter-group"><label>Batch</label><select id="mgjActFilterBatch"><option value="">All Batches</option></select></div>
         <div class="filter-group"><label>Status</label>
           <select id="mgjActFilterStatus">
@@ -11706,7 +11706,7 @@
             <option value="2030-31">2030-31</option>
           </select>
         </div>
-        <div class="filter-group"><label>Centre</label><select id="mgjPivotCentre"><option value="">All Centres</option></select></div>
+        <div class="filter-group"><label>Centre</label><select id="mgjPivotCentre" onchange="onMgjPivotCentreChange()"><option value="">All Centres</option></select></div>
         <div class="filter-group"><label>Batch</label><select id="mgjPivotBatch"><option value="">All Batches</option></select></div>
         <button class="btn btn-primary" onclick="applyMgjPivotFilters()"><i class="fas fa-search"></i> Search</button>
         <button class="btn btn-outline" onclick="resetMgjPivotFilters()"><i class="fas fa-redo"></i> Reset</button>

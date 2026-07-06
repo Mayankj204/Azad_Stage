@@ -34131,7 +34131,14 @@ function _mgjActPopulateBatchFilters() {
     return;
   }
   // Non PI/DL — original all-batches fetch.
-  ['mgjActFilterBatch','mgjPivotBatch','mgjActFormBatch'].forEach(function(id) {
+  // 2026-07-06: mgjActFormBatch removed from this unscoped fill — the FORM
+  // batch list is now owned by the Centre→Batch cascade
+  // (onMgjActFormCentreChange → _mgjActRescopeBatch), so it stays at
+  // "Select Batch" until a Centre is picked. Pre-filling it with every
+  // state's batches was how cross-state batch+centre rows got saved.
+  // The two FILTER selects keep the unscoped fill ("All Batches" is a
+  // valid filter state); they narrow via their own cascade handlers.
+  ['mgjActFilterBatch','mgjPivotBatch'].forEach(function(id) {
     var sel = document.getElementById(id); if (!sel) return;
     if (sel.options.length > 1) return;
     apiGet('/mgj-master/dropdown/batches').then(function(resp) {
@@ -34439,7 +34446,17 @@ function openMgjActivityForm(mode, id) {
       s('mgjActFormMonth', r.month_ym);
       setTimeout(function() {
         var c = document.getElementById('mgjActFormCentre'); if (c) c.value = r.centre_code || '';
-        var b = document.getElementById('mgjActFormBatch'); if (b) b.value = r.batch_id || '';
+        // 2026-07-06: Setting .value programmatically doesn't fire onchange,
+        // so run the Centre→Batch cascade explicitly, THEN set the batch —
+        // otherwise the batch value would be applied against the stale
+        // unscoped option list. For legacy rows whose batch belongs to a
+        // different centre (the 6 mismatched records), the batch won't be
+        // in the re-scoped list — the field shows the placeholder and the
+        // user must pick a valid batch to save, which is the intended
+        // correction path.
+        _mgjActRescopeBatch('mgjActFormBatch', r.centre_code || '', 'Select Batch', function() {
+          var b = document.getElementById('mgjActFormBatch'); if (b) b.value = r.batch_id || '';
+        });
       }, 400);
       // numeric fields
       s('mgjActPakPlanned', r.pakhwada_planned); s('mgjActPakConducted', r.pakhwada_conducted);
@@ -34488,8 +34505,69 @@ function openMgjActivityForm(mode, id) {
   }
 }
 
-// no-op hook for centre dropdown changes (room to filter Batches by centre later)
-function onMgjActFormCentreChange() {}
+// 2026-07-06: Centre → Batch cascade for Overall Activities. Previously a
+// documented no-op ("room to filter Batches by centre later") — the form's
+// Batch dropdown was loaded ONCE with all batches (all states, for admin
+// roles) and never re-scoped when Centre changed. Stage data already had 6
+// activity rows whose batch belonged to a different centre/state than the
+// activity's own centre (e.g. Centre=Chennai with an East Delhi batch).
+// This helper re-scopes any of the Activities batch selects to the given
+// centre, preserving the current selection when it survives the re-scope
+// (needed by the Edit hydration path).
+function _mgjActRescopeBatch(selId, centreCode, defaultLabel, cb) {
+  var sel = document.getElementById(selId);
+  if (!sel) { if (cb) cb(); return; }
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">' + escHtml(defaultLabel || 'All Batches') + '</option>';
+  // Build the scope: explicit centre wins; otherwise fall back to the
+  // user's role floor (PI/DL → their centre, SL → their state, admin →
+  // unscoped) so the FILTER selects still show a sensible "all" list
+  // when Centre is back at the placeholder.
+  var role = (currentUser && currentUser.role) || '';
+  var qsParts = [];
+  if (centreCode) {
+    qsParts.push('centre_code=' + encodeURIComponent(centreCode));
+  } else if ((role === 'pi' || role === 'district_lead') && currentUser && currentUser.mgj_centre_code) {
+    qsParts.push('centre_code=' + encodeURIComponent(currentUser.mgj_centre_code));
+  } else if (role === 'state_lead' && currentUser && currentUser.mgj_state_code) {
+    qsParts.push('state_code=' + encodeURIComponent(currentUser.mgj_state_code));
+  }
+  var qs = qsParts.length ? '?' + qsParts.join('&') : '';
+  apiGet('/mgj-master/dropdown/batches' + qs).then(function(resp) {
+    var rows = (resp && resp.data) ? resp.data : (resp || []);
+    var s2 = document.getElementById(selId);
+    if (!s2) { if (cb) cb(); return; }
+    var seen = {};
+    rows.forEach(function(b) {
+      if (!b || b.id == null || seen[b.id]) return; seen[b.id] = true;
+      var opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name + (b.year ? ' (' + b.year + ')' : '');
+      s2.appendChild(opt);
+    });
+    // Preserve the previous pick only if it's still in scope — a batch
+    // from another centre must NOT survive the cascade.
+    if (prev && s2.querySelector('option[value="' + prev + '"]')) s2.value = prev;
+    if (cb) cb();
+  }).catch(function() { if (cb) cb(); });
+}
+
+function onMgjActFormCentreChange() {
+  var cc = (document.getElementById('mgjActFormCentre') || {}).value || '';
+  _mgjActRescopeBatch('mgjActFormBatch', cc, 'Select Batch');
+}
+
+// Filter-side cascades (list page + pivot) — same helper, "All Batches"
+// placeholder. When Centre goes back to "All Centres" the batch list
+// re-expands to the user's role scope.
+function onMgjActFilterCentreChange() {
+  var cc = (document.getElementById('mgjActFilterCentre') || {}).value || '';
+  _mgjActRescopeBatch('mgjActFilterBatch', cc, 'All Batches');
+}
+function onMgjPivotCentreChange() {
+  var cc = (document.getElementById('mgjPivotCentre') || {}).value || '';
+  _mgjActRescopeBatch('mgjPivotBatch', cc, 'All Batches');
+}
 
 function saveMgjActivity(targetStatus, opts) {
   // opts.onSuccess(resp)  → if provided, the function takes responsibility
