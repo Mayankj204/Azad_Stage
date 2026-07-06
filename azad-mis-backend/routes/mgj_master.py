@@ -862,3 +862,93 @@ def delete_group(group_id: int):
             raise HTTPException(status_code=404, detail="Group not found")
         cur.execute("UPDATE mgj_master_groups SET deleted_at = NOW() WHERE id = %s", (group_id,))
     return {"message": "Group deleted"}
+
+
+# =============================================================================
+# Export (xlsx)
+# =============================================================================
+# 2026-07-06: The six MGJ Master pages (States / Districts / Centres / Areas /
+# Batches / Leader Batches) previously exported via CLIENT-SIDE CSV blobs —
+# the frontend built a text/csv Blob and saved it as mgj-*.csv. This endpoint
+# replaces those with real .xlsx files, reusing the existing list functions
+# above (same queries, same counts) and the shared export_helper — matching
+# how every other export in the system works. Column sets intentionally
+# mirror the on-screen tables / old CSV headers.
+
+@router.get("/export/excel")
+def export_master(entity: str,
+                  state_code: Optional[str] = None,
+                  district_code: Optional[str] = None,
+                  centre_code: Optional[str] = None,
+                  name: Optional[str] = None,
+                  status: Optional[str] = None):
+    import io as _io, csv as _csv
+    from datetime import date as _date
+    from export_helper import csv_string_to_xlsx_response
+
+    BIG = 100000  # effectively "all rows" — master tables are small
+
+    if entity == 'states':
+        rows = list_states(name=name, status=status, page=1, limit=BIG)["data"]
+        headers = ['S.No', 'State Name', 'State Code', 'Districts', 'Centres', 'Status']
+        data = [[i + 1, r['state_name'], r['state_code'],
+                 r.get('district_count') or 0, r.get('centre_count') or 0, r['status']]
+                for i, r in enumerate(rows)]
+        fname = 'MGJ_States'
+    elif entity == 'districts':
+        rows = list_districts(state_code=state_code, name=name, status=status, page=1, limit=BIG)["data"]
+        headers = ['S.No', 'District Name', 'District Code', 'State', 'Centres', 'Status']
+        data = [[i + 1, r['district_name'], r['district_code'],
+                 r.get('state_name') or r.get('state_code') or '',
+                 r.get('centre_count') or 0, r['status']]
+                for i, r in enumerate(rows)]
+        fname = 'MGJ_Districts'
+    elif entity == 'centres':
+        rows = list_centres(state_code=state_code, district_code=district_code,
+                            name=name, status=status, page=1, limit=BIG)["data"]
+        headers = ['S.No', 'Centre Name', 'Centre Code', 'District', 'State', 'Areas', 'Batches', 'Status']
+        data = [[i + 1, r['centre_name'], r['centre_code'],
+                 r.get('district_name') or r.get('district_code') or '',
+                 r.get('state_name') or r.get('state_code') or '',
+                 r.get('area_count') or 0, r.get('batch_count') or 0, r['status']]
+                for i, r in enumerate(rows)]
+        fname = 'MGJ_Centres'
+    elif entity == 'areas':
+        rows = list_areas(state_code=state_code, district_code=district_code,
+                          centre_code=centre_code, name=name, status=status,
+                          page=1, limit=BIG)["data"]
+        headers = ['S.No', 'Area Name', 'Area Code', 'Centre', 'District', 'State', 'Status']
+        data = [[i + 1, r['area_name'], r['area_code'],
+                 r.get('centre_name') or r.get('centre_code') or '',
+                 r.get('district_name') or r.get('district_code') or '',
+                 r.get('state_name') or r.get('state_code') or '', r['status']]
+                for i, r in enumerate(rows)]
+        fname = 'MGJ_Areas'
+    elif entity == 'batches':
+        rows = list_batches(state_code=state_code, centre_code=centre_code,
+                            status=status, page=1, limit=BIG)["data"]
+        headers = ['S.No', 'Batch Name', 'Year', 'State', 'Centre', 'Status']
+        data = [[i + 1, r['name'], r.get('year') or '',
+                 r.get('state_name') or r.get('state_code') or '',
+                 r.get('centre_name') or r.get('centre_code') or '', r['status']]
+                for i, r in enumerate(rows)]
+        fname = 'MGJ_Batches'
+    elif entity == 'leader_batches':
+        from routes.mgj_master_leader_batches import list_leader_batches
+        rows = list_leader_batches(state_code=state_code, centre_code=centre_code,
+                                   status=status, q=name, page=1, limit=BIG)["data"]
+        headers = ['S.No', 'Leader Batch Name', 'Year', 'Centre', 'State', 'Status']
+        data = [[i + 1, r['name'], r.get('year') or '',
+                 r.get('centre_name') or r.get('centre_code') or '',
+                 r.get('state_name') or r.get('state_code') or '', r['status']]
+                for i, r in enumerate(rows)]
+        fname = 'MGJ_Leader_Batches'
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown export entity '{entity}'")
+
+    out = _io.StringIO()
+    w = _csv.writer(out)
+    w.writerow(headers)
+    for row in data:
+        w.writerow(row)
+    return csv_string_to_xlsx_response(out.getvalue(), f"{fname}_{_date.today().isoformat()}.xlsx")

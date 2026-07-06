@@ -38208,17 +38208,13 @@ function viewMgjMState(code) {
     alert('State: ' + s.state_name + '\nCode: ' + s.state_code + '\nDistricts: ' + (s.district_count || 0) + '\nCentres: ' + (s.centre_count || 0) + '\nStatus: ' + s.status);
   });
 }
+// 2026-07-06: These six MGJ Master exports previously built CLIENT-SIDE
+// text/csv Blobs saved as mgj-*.csv — the reported ".csv instead of .xlsx"
+// issue. They now hit the new backend /api/mgj-master/export/excel endpoint,
+// which reuses the same list queries and returns a real .xlsx via
+// export_helper (same pattern as the member-list export).
 function exportMgjMStateToExcel() {
-  apiMgjMStates({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,State Name,State Code,Districts,Centres,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.state_name + '","' + r.state_code + '",' + (r.district_count || 0) + ',' + (r.centre_count || 0) + ',' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-states.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=states';
 }
 function _renderMgjMPagination(targetId, total, page, limit, fnName) {
   // Reuse the FLP renderListPagination markup so MGJ Master pagination looks
@@ -38348,16 +38344,7 @@ function viewMgjMDistrict(code) {
   });
 }
 function exportMgjMDistrictToExcel() {
-  apiMgjMDistricts({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,District Name,District Code,State,Centres,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.district_name + '","' + r.district_code + '","' + (r.state_name || r.state_code) + '",' + (r.centre_count || 0) + ',' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-districts.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=districts';
 }
 function resetMgjMDistrictFilters() {
   ['mgjMDistrictFilterState','mgjMDistrictFilterName','mgjMDistrictFilterStatus'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
@@ -38461,16 +38448,7 @@ function viewMgjMCentre(code) {
   });
 }
 function exportMgjMCentreToExcel() {
-  apiMgjMCentres({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Centre Name,Centre Code,District,State,Areas,Batches,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.centre_name + '","' + r.centre_code + '","' + (r.district_name || r.district_code) + '","' + (r.state_name || r.state_code) + '",' + (r.area_count || 0) + ',' + (r.batch_count || 0) + ',' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-centres.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=centres';
 }
 function onMgjMCentreFilterStateChange() {
   var s = (document.getElementById('mgjMCentreFilterState') || {}).value;
@@ -38578,16 +38556,7 @@ function loadMgjMAreas(page) {
   }).catch(function(err) { showUserError('loading MGJ areas', err); });
 }
 function exportMgjMAreaToExcel() {
-  apiMgjMAreas({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Area Name,Area Code,Centre,District,State,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.area_name + '","' + r.area_code + '","' + (r.centre_name || r.centre_code) + '","' + (r.district_name || r.district_code) + '","' + (r.state_name || r.state_code) + '",' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-areas.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=areas';
 }
 function onMgjMAreaFilterStateChange() {
   var s = (document.getElementById('mgjMAreaFilterState') || {}).value;
@@ -38710,19 +38679,7 @@ function loadMgjMBatches(page) {
   }).catch(function(err) { showUserError('loading MGJ batches', err); });
 }
 function exportMgjMBatchToExcel() {
-  apiMgjMBatches({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    // 2026-06-12: Centre column re-added to CSV to match the on-screen table.
-    var csv = 'S.No,Batch Name,Year,State,Centre,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.name + '","' + (r.year || '') + '","' +
-             (r.state_name || r.state_code || '') + '","' +
-             (r.centre_name || r.centre_code || '') + '",' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-batches.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=batches';
 }
 function resetMgjMBatchFilters() {
   ['mgjMBatchFilterState','mgjMBatchFilterCentre','mgjMBatchFilterStatus'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
@@ -38883,18 +38840,7 @@ function loadMgjMLeaderBatches(page) {
 }
 
 function exportMgjMLeaderBatchToExcel() {
-  apiMgjMLeaderBatches({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Leader Batch Name,Year,Centre,State,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.name + '","' + (r.year || '') + '","' +
-             (r.centre_name || r.centre_code || '') + '","' +
-             (r.state_name || r.state_code || '') + '",' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-leader-batches.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=leader_batches';
 }
 
 function resetMgjMLeaderBatchFilters() {
