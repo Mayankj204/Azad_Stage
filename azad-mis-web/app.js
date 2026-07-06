@@ -5855,7 +5855,21 @@ function renderSurveyV2(s) {
 
   // ── GPS / Meta Footer ──
   h += '<div class="view-section" style="margin-top:10px;">';
-  h += '<h3><i class="fas fa-map-pin" style="color:#732269;"></i> GPS & Submission Info</h3>';
+  // 2026-07-06: The map-pin icon is now a link — clicking it opens Google
+  // Maps at the survey's recorded latitude/longitude in a new tab. Only
+  // rendered as a link when both coordinates exist; otherwise it stays a
+  // plain icon.
+  if (s.latitude && s.longitude) {
+    h += '<h3><a href="https://www.google.com/maps?q=' +
+         encodeURIComponent(String(s.latitude) + ',' + String(s.longitude)) +
+         '" target="_blank" rel="noopener" title="Open this location in Google Maps"' +
+         ' style="text-decoration:none;">' +
+         '<i class="fas fa-map-pin" style="color:#732269;cursor:pointer;"></i>' +
+         '</a> GPS & Submission Info' +
+         ' <span style="font-size:11px;color:#999;font-weight:normal;">(click the pin to view on map)</span></h3>';
+  } else {
+    h += '<h3><i class="fas fa-map-pin" style="color:#732269;"></i> GPS & Submission Info</h3>';
+  }
   h += '<div class="detail-grid">';
   if (s.latitude) h += di('Latitude', s.latitude);
   if (s.longitude) h += di('Longitude', s.longitude);
@@ -5933,7 +5947,20 @@ function renderSurveyV1(s) {
   h += detailItem('Comment', s.comment);
   h += '</div></div>';
   // GPS
-  h += '<div class="view-section"><h3>GPS & Meta</h3><div class="detail-grid">';
+  // 2026-07-06: same clickable map-pin as the main survey view — opens
+  // Google Maps at the recorded coordinates in a new tab.
+  h += '<div class="view-section">';
+  if (s.latitude && s.longitude) {
+    h += '<h3><a href="https://www.google.com/maps?q=' +
+         encodeURIComponent(String(s.latitude) + ',' + String(s.longitude)) +
+         '" target="_blank" rel="noopener" title="Open this location in Google Maps"' +
+         ' style="text-decoration:none;">' +
+         '<i class="fas fa-map-pin" style="color:#732269;cursor:pointer;"></i>' +
+         '</a> GPS & Meta</h3>';
+  } else {
+    h += '<h3>GPS & Meta</h3>';
+  }
+  h += '<div class="detail-grid">';
   h += detailItem('Latitude', s.latitude);
   h += detailItem('Longitude', s.longitude);
   h += detailItem('Status', s.status);
