@@ -21585,8 +21585,18 @@ function _initFlpCaseStudyForm() {
 function openAddMgj() {
   mgjFormMode = 'add';
   editingMgjId = null;
+  // 2026-07-06: Clear any photo left over from a previous add/edit so a
+  // stale file doesn't get silently uploaded against the new member.
+  mgjSelectedPhoto = null;
   navigateTo('addMgj');
   setTimeout(function() {
+    var _pp = document.getElementById('mgjPhotoPreview');
+    if (_pp) _pp.innerHTML = '<i class="fas fa-camera"></i>';
+    // Clear the persistent file input too — without this, re-picking the
+    // same file wouldn't fire onchange (see the input's onclick note in
+    // index.html).
+    var _pi = document.getElementById('mgjPhotoInput');
+    if (_pi) _pi.value = '';
     // Breadcrumb text + header Update button — these toggle between
     // add and edit modes so the user always knows which mode they're in
     // and (in edit mode) can save changes from any tab via the header
@@ -21730,6 +21740,23 @@ function _proceedEditMgj(id) {
       _s('mgjAge', m.age_at_enrollment);
       _s('mgjAddress', m.address);
       _s('mgjMobile', m.mobile);
+      // 2026-07-06: Show the SAVED photo in the edit preview (previously
+      // the preview only ever showed a freshly-picked local file via
+      // FileReader — a saved photo_url was never loaded back). photo_url
+      // is stored as a server-relative /uploads/... path, so prefix the
+      // API origin the same way the FLP view does.
+      mgjSelectedPhoto = null;
+      // Also clear the persistent file input so picking the same file for
+      // this member still fires onchange (SPA — the input survives across
+      // members; a stale value suppresses the change event).
+      var _pi = document.getElementById('mgjPhotoInput');
+      if (_pi) _pi.value = '';
+      var _pp = document.getElementById('mgjPhotoPreview');
+      if (_pp) {
+        _pp.innerHTML = m.photo_url
+          ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'
+          : '<i class="fas fa-camera"></i>';
+      }
       // mgjGroup is now a dropdown filtered by mgjArea. We can't preselect it
       // here because the area cascade fires later (in the state→centre→area
       // chain below). The Group preselect happens after the area cascade
@@ -23178,13 +23205,44 @@ function saveMgjRecord(asDraft) {
                               : 'MGJ member ' + _verb + _submitMsg;
 
   var _afterSave = function(resp) {
-    alert(_saveLabel);
-    // On a Submit (asDraft=false) we navigate back to the list — that's
-    // the existing behavior. On a Draft save we ALSO navigate back so
-    // the user can see the row appear with the orange "Draft" badge in
-    // the list (matches FLP). They can re-open it from the list to
-    // continue editing — the 7-day window starts from the first save.
-    navigateTo('mgjList');
+    // 2026-07-06: Upload the picked photo BEFORE navigating away. This was
+    // the missing half of the MGJ photo feature — previewMgjPhoto captured
+    // the file into mgjSelectedPhoto but nothing ever uploaded it, so
+    // photo_url stayed NULL in the DB. Mirrors the AK save flow
+    // (apiAkUploadPhoto after apiCreateAk/apiUpdateAk).
+    var savedId = (resp && resp.id) || editingMgjId;
+    var _finish = function() {
+      alert(_saveLabel);
+      // On a Submit (asDraft=false) we navigate back to the list — that's
+      // the existing behavior. On a Draft save we ALSO navigate back so
+      // the user can see the row appear with the orange "Draft" badge in
+      // the list (matches FLP). They can re-open it from the list to
+      // continue editing — the 7-day window starts from the first save.
+      navigateTo('mgjList');
+    };
+    if (mgjSelectedPhoto && savedId) {
+      apiMgjUploadPhoto(savedId, mgjSelectedPhoto).then(function() {
+        mgjSelectedPhoto = null;
+        // Clear the file input so the NEXT member's photo pick always
+        // fires onchange, even if it's the same file (SPA — the input
+        // persists across members; this was why "update image on one
+        // user, then another" silently did nothing until a refresh).
+        var _pi = document.getElementById('mgjPhotoInput');
+        if (_pi) _pi.value = '';
+        _finish();
+      }).catch(function(err) {
+        // Member record itself saved fine — don't block the flow, but
+        // tell the user the photo specifically failed so they can retry
+        // from Edit rather than assuming everything persisted.
+        mgjSelectedPhoto = null;
+        var _pi = document.getElementById('mgjPhotoInput');
+        if (_pi) _pi.value = '';
+        alert('Member saved, but the photo upload failed: ' + (err && err.message ? err.message : 'unknown error') + '\nOpen the member in Edit and re-select the photo to retry.');
+        navigateTo('mgjList');
+      });
+    } else {
+      _finish();
+    }
   };
 
   if (_isEditMode) {
@@ -23214,6 +23272,18 @@ function loadMgjDetail(id) {
     // "Dropout" pill renders directly below the member name — the most
     // glanceable position for the at-a-glance state of the record.
     document.getElementById('mgjViewName').textContent = m.name || '—';
+    // 2026-07-06: Render the member photo in the profile header. The view
+    // page previously had NO photo rendering at all — only the static
+    // user-circle icon — even though the backend GET returns photo_url
+    // (SELECT m.*). Mirrors the AK view (akViewPhotoContainer) with the
+    // FLP view's URL construction (API_BASE.replace('/api','') + relative
+    // /uploads/... path).
+    var _photoC = document.getElementById('mgjViewPhoto');
+    if (_photoC) {
+      _photoC.innerHTML = m.photo_url
+        ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">'
+        : '<i class="fas fa-user-circle" style="font-size:80px;color:#732269;"></i>';
+    }
     var sumParts = [
       m.enrollment_number || '',
       m.group_number ? 'Group ' + m.group_number : '',

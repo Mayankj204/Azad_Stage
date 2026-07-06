@@ -567,6 +567,13 @@ function apiMgjList(params) {
 function apiMgjDetail(id) { return apiGet('/mgj/' + id); }
 function apiCreateMgj(data) { return apiPost('/mgj', data); }
 function apiUpdateMgj(id, data) { return apiPut('/mgj/' + id, data); }
+// 2026-07-06: Photo upload — previously MISSING entirely (the edit form
+// only previewed the picked file locally; nothing was ever sent, so
+// mgj_members.photo_url stayed NULL). Mirrors apiUploadFlpPhoto.
+function apiMgjUploadPhoto(id, file) {
+  var fd = new FormData(); fd.append('file', file);
+  return apiUpload('/mgj/' + id + '/photo', fd);
+}
 
 // MGJ member per-member education history (added 2026-05-27)
 function apiMgjListEducation(memberId)        { return apiGet('/mgj/' + memberId + '/education'); }

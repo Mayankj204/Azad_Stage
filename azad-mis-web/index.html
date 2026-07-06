@@ -1111,7 +1111,7 @@
                 <div class="photo-preview" id="photoPreview" onclick="document.getElementById('flpPhotoInput').click()">
                   <i class="fas fa-camera"></i>
                 </div>
-                <input type="file" id="flpPhotoInput" accept="image/*" style="display:none" onchange="previewFlpPhoto(this)">
+                <input type="file" id="flpPhotoInput" accept="image/*" style="display:none" onclick="this.value=null" onchange="previewFlpPhoto(this)">
                 <span class="photo-preview-label">Click to upload photo</span>
               </div>
             </div>
@@ -10325,7 +10325,14 @@
                 <div class="photo-preview" id="mgjPhotoPreview" onclick="document.getElementById('mgjPhotoInput').click()">
                   <i class="fas fa-camera"></i>
                 </div>
-                <input type="file" id="mgjPhotoInput" accept="image/*" style="display:none" onchange="previewMgjPhoto(this)">
+                <!-- 2026-07-06: onclick="this.value=null" — the browser only
+                     fires onchange when the input's value CHANGES. In this SPA
+                     the input persists across members, so after uploading a
+                     photo for member A, picking the same file for member B
+                     never fired onchange → mgjSelectedPhoto stayed null → no
+                     upload (until a page refresh cleared the input). Clearing
+                     the value on click guarantees onchange fires every time. -->
+                <input type="file" id="mgjPhotoInput" accept="image/*" style="display:none" onclick="this.value=null" onchange="previewMgjPhoto(this)">
                 <span class="photo-preview-label">Click to upload photo</span>
               </div>
             </div>
@@ -10548,7 +10555,10 @@
            Same component the FLP detail page uses, so the look is consistent. -->
       <div class="view-profile">
         <div class="profile-header">
-          <div class="profile-photo">
+          <!-- 2026-07-06: id added so loadMgjDetail can render the member
+               photo here (mirrors akViewPhotoContainer). Falls back to the
+               same user-circle icon when the member has no photo. -->
+          <div class="profile-photo" id="mgjViewPhoto">
             <i class="fas fa-user-circle" style="font-size:80px;color:#732269;"></i>
           </div>
           <div class="profile-summary">
@@ -13915,7 +13925,7 @@
                 <div class="photo-preview" id="akPhotoPreview" onclick="document.getElementById('akPhotoInput').click()">
                   <i class="fas fa-camera"></i>
                 </div>
-                <input type="file" id="akPhotoInput" accept=".jpg,.jpeg,.png" style="display:none" onchange="previewAkPhoto(this)">
+                <input type="file" id="akPhotoInput" accept=".jpg,.jpeg,.png" style="display:none" onclick="this.value=null" onchange="previewAkPhoto(this)">
                 <span class="photo-preview-label">Click to upload picture</span>
               </div>
             </div>

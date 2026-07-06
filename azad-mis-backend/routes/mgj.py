@@ -1,12 +1,13 @@
 """MGJ (Men with Gender Justice) module routes."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from typing import Optional, Any, Dict
 from pydantic import BaseModel
 from psycopg2.extras import Json
-import sys, os, io, csv
+import sys, os, io, csv, uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import get_cursor
+from config import UPLOAD_DIR
 
 router = APIRouter(prefix="/api/mgj", tags=["MGJ"])
 
@@ -408,3 +409,36 @@ def walkout_mgj(mgj_id: int, data: MGJWalkoutRequest):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="MGJ member not found")
     return {"message": "MGJ member marked as dropout"}
+
+
+# ── Photo Upload ─────────────────────────────────────────────────────────
+# 2026-07-06: The MGJ member photo feature was half-built — the
+# mgj_members.photo_url column existed and the edit form let the user pick
+# a file (previewed locally via FileReader), but NOTHING ever uploaded or
+# persisted it, so photo_url stayed NULL in the DB. This endpoint mirrors
+# the working FLP (routes/flps.py upload_photo) and AK (routes/ak.py)
+# patterns exactly: save under UPLOAD_DIR, persist the URL-RELATIVE
+# /uploads/... path (never the filesystem path — see the flp_documents
+# comment in flps.py for the 404 that caused).
+
+@router.post("/{mgj_id}/photo")
+async def upload_photo(mgj_id: int, file: UploadFile = File(...)):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    saved_name = f"mgj_photo_{mgj_id}_{uuid.uuid4()}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, saved_name)
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    photo_url = f"/uploads/{saved_name}"
+    with get_cursor() as cur:
+        cur.execute("""
+            UPDATE mgj_members SET photo_url = %s, updated_at = NOW()
+             WHERE id = %s AND deleted_at IS NULL RETURNING id
+        """, (photo_url, mgj_id))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="MGJ member not found")
+    return {"photo_url": photo_url}
