@@ -21615,7 +21615,12 @@ function openAddMgj() {
      'mgjWomenBelow18','mgjMenBelow18','mgjWomenAbove18','mgjMenAbove18',
      'mgjWomenInAzadRel','mgjMenInAzadRel',
      'mgjEducationOther','mgjStudyingWhat',
-     'mgjCareerStatus','mgjWorkPlace','mgjIncome','mgjFutureGoal'
+     'mgjCareerStatus','mgjWorkPlace','mgjIncome','mgjFutureGoal',
+     // 2026-07-06: The "Other — please specify" free-text fields were
+     // missing from this list, so after submitting a member and opening
+     // Add MGJ again they stayed autofilled with the previous member's
+     // values (reported alongside stale Centre/Area — fixed below).
+     'mgjAreaOther','mgjCasteOther','mgjReligionOther','mgjGenderOther','mgjWorkNatureOther'
     ].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
@@ -21630,6 +21635,19 @@ function openAddMgj() {
     // changes via _populateMgjBatchDropdown.
     var mgjBatchSel = document.getElementById('mgjBatch');
     if (mgjBatchSel) mgjBatchSel.innerHTML = '<option value="">Select Batch</option>';
+    // 2026-07-06: Reset the geography cascade. This was the main source of
+    // the "fields autofilled on the next Add" report — State/Centre/Area
+    // were never in any reset list, so the previous member's selections
+    // (and Centre/Area option lists from the previous State) persisted
+    // into the new Add form. State's OPTION list is rebuilt by
+    // _populateMgjFormState() below, but its selected value, and the
+    // Centre/Area dropdowns' entire option sets, must be cleared here.
+    var _mgjStateSel = document.getElementById('mgjState');
+    if (_mgjStateSel) _mgjStateSel.value = '';
+    var _mgjCentreSel = document.getElementById('mgjCentre');
+    if (_mgjCentreSel) _mgjCentreSel.innerHTML = '<option value="">Select Centre</option>';
+    var _mgjAreaSel = document.getElementById('mgjArea');
+    if (_mgjAreaSel) _mgjAreaSel.innerHTML = '<option value="">Select Area</option>';
     // Reset all dropdowns
     ['mgjCaste','mgjReligion','mgjGender','mgjSocialMedia','mgjMarital',
      'mgjWomenInAzad','mgjMenInAzad','mgjEducation','mgjStillStudying',
@@ -21643,7 +21661,12 @@ function openAddMgj() {
     // Year input upper bound = current year (per client rule).
     if (_ey) _ey.max = String(new Date().getFullYear());
     // Hide conditional fields (mgjStudyingWhatGrp removed from DOM 2026-05-27)
-    ['mgjSocialMediaDetailsGrp','mgjAgeAtMarriageGrp','mgjWomenInAzadRelGrp','mgjMenInAzadRelGrp','mgjEducationOtherGrp','mgjWorkDetailsGrp'].forEach(function(id) {
+    // 2026-07-06: added the Caste/Religion/Gender/Area/WorkNature "Other"
+    // groups and the Children group — these were missing, so a previous
+    // member who used an "Other" value left the specify-box visible (and
+    // filled) on the next Add.
+    ['mgjSocialMediaDetailsGrp','mgjAgeAtMarriageGrp','mgjWomenInAzadRelGrp','mgjMenInAzadRelGrp','mgjEducationOtherGrp','mgjWorkDetailsGrp',
+     'mgjCasteOtherGrp','mgjReligionOtherGrp','mgjGenderOtherGrp','mgjAreaOtherGrp','mgjWorkNatureOtherGrp','mgjChildrenGrp'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.style.display = 'none';
     });
     // Reset dynamic family-member detail blocks (Q5-Q8 right-side cards)
