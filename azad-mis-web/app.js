@@ -23998,7 +23998,12 @@ function _proceedEditAk(id) {
       document.getElementById('akFamilyIncome').value = m.family_monthly_income || '';
       document.getElementById('akFamilyMembers').value = m.family_members || '';
       document.getElementById('akPerCapita').value = m.per_capita_income || '';
-      if (m.photo_url) { document.getElementById('akPhotoPreview').innerHTML = '<img src="' + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'; }
+      var _pp = document.getElementById('akPhotoPreview');
+      if (_pp) {
+        _pp.innerHTML = m.photo_url
+          ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'
+          : '<i class="fas fa-camera"></i>';
+      }
     });
   }, 100);
 }
@@ -24668,9 +24673,11 @@ function loadAkDetail(id) {
       escHtml(m.centre_name || '') + ' &nbsp;|&nbsp; ' + escHtml(m.batch_name || '') + ' &nbsp;|&nbsp; ' + statusBadge(m.status);
     var wo = document.getElementById('btnAkWalkOut');
     if (wo) wo.style.display = (m.status === 'Active') ? '' : 'none';
-    if (m.photo_url) {
-      var pc = document.getElementById('akViewPhotoContainer');
-      if (pc) pc.innerHTML = '<img src="' + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">';
+    var pc = document.getElementById('akViewPhotoContainer');
+    if (pc) {
+      pc.innerHTML = m.photo_url
+        ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">'
+        : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;color:#999;"><i class="fas fa-user"></i></div>';
     }
     var bg = document.getElementById('akViewBasicGrid');
     if (bg) {
