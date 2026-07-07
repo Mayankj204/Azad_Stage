@@ -21632,7 +21632,10 @@ function openAddMgj() {
      'mgjWomenBelow18','mgjMenBelow18','mgjWomenAbove18','mgjMenAbove18',
      'mgjWomenInAzadRel','mgjMenInAzadRel',
      'mgjEducationOther','mgjStudyingWhat',
-     'mgjCareerStatus','mgjWorkPlace','mgjIncome','mgjFutureGoal'
+     'mgjCareerStatus','mgjWorkPlace','mgjIncome','mgjFutureGoal',
+     // 2026-07-06: "Other — specify" free-text fields were missing here, so
+     // they stayed autofilled with the previous member's values on the next Add.
+     'mgjAreaOther','mgjCasteOther','mgjReligionOther','mgjGenderOther','mgjWorkNatureOther'
     ].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
@@ -21647,6 +21650,26 @@ function openAddMgj() {
     // changes via _populateMgjBatchDropdown.
     var mgjBatchSel = document.getElementById('mgjBatch');
     if (mgjBatchSel) mgjBatchSel.innerHTML = '<option value="">Select Batch</option>';
+    // 2026-07-06: Reset the geography cascade — State/Centre/Area were in no
+    // reset list, so the previous member's selections (and Centre/Area option
+    // lists from the previous State) persisted into the new Add form. State's
+    // option list is rebuilt by _populateMgjFormState below; its selected
+    // value and the Centre/Area dropdowns' option sets are cleared here.
+    var _mgjStateSel = document.getElementById('mgjState');
+    if (_mgjStateSel) _mgjStateSel.value = '';
+    var _mgjCentreSel = document.getElementById('mgjCentre');
+    if (_mgjCentreSel) _mgjCentreSel.innerHTML = '<option value="">Select Centre</option>';
+    var _mgjAreaSel = document.getElementById('mgjArea');
+    if (_mgjAreaSel) _mgjAreaSel.innerHTML = '<option value="">Select Area</option>';
+    // 2026-07-06: Reset the photo picker so a photo left over from a
+    // previous Add/Edit isn't silently uploaded against the new member,
+    // and clear the file input so re-picking the same file still fires
+    // onchange (the input persists across members in this SPA).
+    mgjSelectedPhoto = null;
+    var _mgjPP = document.getElementById('mgjPhotoPreview');
+    if (_mgjPP) _mgjPP.innerHTML = '<i class="fas fa-camera"></i>';
+    var _mgjPI = document.getElementById('mgjPhotoInput');
+    if (_mgjPI) _mgjPI.value = '';
     // Reset all dropdowns
     ['mgjCaste','mgjReligion','mgjGender','mgjSocialMedia','mgjMarital',
      'mgjWomenInAzad','mgjMenInAzad','mgjEducation','mgjStillStudying',
@@ -21660,7 +21683,10 @@ function openAddMgj() {
     // Year input upper bound = current year (per client rule).
     if (_ey) _ey.max = String(new Date().getFullYear());
     // Hide conditional fields (mgjStudyingWhatGrp removed from DOM 2026-05-27)
-    ['mgjSocialMediaDetailsGrp','mgjAgeAtMarriageGrp','mgjWomenInAzadRelGrp','mgjMenInAzadRelGrp','mgjEducationOtherGrp','mgjWorkDetailsGrp'].forEach(function(id) {
+    ['mgjSocialMediaDetailsGrp','mgjAgeAtMarriageGrp','mgjWomenInAzadRelGrp','mgjMenInAzadRelGrp','mgjEducationOtherGrp','mgjWorkDetailsGrp',
+     // 2026-07-06: added the Other/Children conditional groups — a previous
+     // member who used an "Other" value left the specify-box visible on next Add.
+     'mgjCasteOtherGrp','mgjReligionOtherGrp','mgjGenderOtherGrp','mgjAreaOtherGrp','mgjWorkNatureOtherGrp','mgjChildrenGrp'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.style.display = 'none';
     });
     // Reset dynamic family-member detail blocks (Q5-Q8 right-side cards)
@@ -21757,6 +21783,18 @@ function _proceedEditMgj(id) {
       _s('mgjAge', m.age_at_enrollment);
       _s('mgjAddress', m.address);
       _s('mgjMobile', m.mobile);
+      // 2026-07-06: Load the SAVED photo into the edit preview (previously
+      // only a freshly-picked local file ever showed). Clear the picker
+      // state + file input so opening Edit doesn't re-upload a stale file
+      // and re-picking the same file still fires onchange.
+      mgjSelectedPhoto = null;
+      var _ePI = document.getElementById('mgjPhotoInput'); if (_ePI) _ePI.value = '';
+      var _ePP = document.getElementById('mgjPhotoPreview');
+      if (_ePP) {
+        _ePP.innerHTML = m.photo_url
+          ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'
+          : '<i class="fas fa-camera"></i>';
+      }
       // mgjGroup is now a dropdown filtered by mgjArea. We can't preselect it
       // here because the area cascade fires later (in the state→centre→area
       // chain below). The Group preselect happens after the area cascade
@@ -23205,13 +23243,25 @@ function saveMgjRecord(asDraft) {
                               : 'MGJ member ' + _verb + _submitMsg;
 
   var _afterSave = function(resp) {
-    alert(_saveLabel);
-    // On a Submit (asDraft=false) we navigate back to the list — that's
-    // the existing behavior. On a Draft save we ALSO navigate back so
-    // the user can see the row appear with the orange "Draft" badge in
-    // the list (matches FLP). They can re-open it from the list to
-    // continue editing — the 7-day window starts from the first save.
-    navigateTo('mgjList');
+    // 2026-07-06: Upload the picked photo BEFORE navigating away. Previously
+    // mgjSelectedPhoto was captured but never uploaded, so photo_url stayed
+    // NULL. Mirrors the AK save flow (upload after create/update).
+    var savedId = (resp && resp.id) || editingMgjId;
+    var _finish = function() { alert(_saveLabel); navigateTo('mgjList'); };
+    if (mgjSelectedPhoto && savedId) {
+      apiMgjUploadPhoto(savedId, mgjSelectedPhoto).then(function() {
+        mgjSelectedPhoto = null;
+        var _pi = document.getElementById('mgjPhotoInput'); if (_pi) _pi.value = '';
+        _finish();
+      }).catch(function(err) {
+        mgjSelectedPhoto = null;
+        var _pi = document.getElementById('mgjPhotoInput'); if (_pi) _pi.value = '';
+        alert('Member saved, but the photo upload failed: ' + (err && err.message ? err.message : 'unknown error') + '\nOpen the member in Edit and re-select the photo to retry.');
+        navigateTo('mgjList');
+      });
+    } else {
+      _finish();
+    }
   };
 
   if (_isEditMode) {
@@ -23241,6 +23291,16 @@ function loadMgjDetail(id) {
     // "Dropout" pill renders directly below the member name — the most
     // glanceable position for the at-a-glance state of the record.
     document.getElementById('mgjViewName').textContent = m.name || '—';
+    // 2026-07-06: Render the member photo in the profile header (the view
+    // page had no photo rendering — only a static icon). photo_url is a
+    // server-relative /uploads/... path, so prefix the API origin the same
+    // way the FLP view does. Falls back to the user-circle icon when absent.
+    var _photoC = document.getElementById('mgjViewPhoto');
+    if (_photoC) {
+      _photoC.innerHTML = m.photo_url
+        ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">'
+        : '<i class="fas fa-user-circle" style="font-size:80px;color:#732269;"></i>';
+    }
     var sumParts = [
       m.enrollment_number || '',
       m.group_number ? 'Group ' + m.group_number : '',
@@ -24678,6 +24738,15 @@ function previewMgjPhoto(input) {
     };
     reader.readAsDataURL(input.files[0]);
   }
+}
+
+// 2026-07-06: MGJ member photo upload — mirrors apiUploadFlpPhoto. This was
+// MISSING, so previewMgjPhoto only showed the picked file locally and the
+// photo was never sent; mgj_members.photo_url stayed NULL and the view page
+// had nothing to render. Uses apiUpload (multipart) like the FLP flow.
+function apiMgjUploadPhoto(id, file) {
+  var fd = new FormData(); fd.append('file', file);
+  return apiUpload('/mgj/' + id + '/photo', fd);
 }
 
 
@@ -36410,6 +36479,7 @@ function resetMgjAssessmentFilters() {
 // current filters at a high limit and turns it into a CSV file the
 // browser downloads. Avoids adding a new backend endpoint.
 function exportMgjAssessmentToExcel() {
+
   // 2026-07-06: Was a client-side CSV blob with ONLY 12 summary columns
   // (no responses) saved as mgj-assessments-<date>.csv. Now hits the backend
   // /mgj-assessments/export/excel, which returns a real .xlsx with merged
@@ -36417,6 +36487,10 @@ function exportMgjAssessmentToExcel() {
   // phase-labelled columns. Same filter params; backend reuses the grouped
   // list query so State->Centre cascade, Type, Status, Name + role scope all
   // apply exactly like the on-screen list.
+  // 2026-07-06: Was a client-side CSV blob (12 summary cols, no answers,
+  // .csv). Now hits the backend /mgj-assessments/export/excel, returning a
+  // real .xlsx with merged Baseline/Midline/Endline group banners and every
+  // filled answer in phase-labelled columns. Same filters + role scope.
   var v = function(id) { var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
   var qs = [];
   if (v('mgjAsFilterState'))  qs.push('state_code='      + encodeURIComponent(v('mgjAsFilterState')));
@@ -38116,7 +38190,15 @@ function mgjAfSaveDraft(silent) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       _mgjAfSetStatus('draftSavedAt', new Date().toLocaleTimeString());
       _restoreBtn();
-      if (!silent) alert('Draft saved.');
+      // 2026-07-06: On an explicit (user-clicked) Save Draft, leave the
+      // assessment and return to the list — the draft is persisted and the
+      // user expects to exit, matching Submit/Delete behaviour. Silent saves
+      // (autosave, and the pre-save inside submitMgjAssessmentDraft) must NOT
+      // navigate, or they'd interrupt typing / break the submit flow.
+      if (!silent) {
+        alert('Draft saved.');
+        navigateTo('mgjAssessmentList');
+      }
     }).catch(function(err) {
       _mgjAfSetStatus('saveFailedRetry');
       _restoreBtn();
@@ -38241,16 +38323,8 @@ function viewMgjMState(code) {
   });
 }
 function exportMgjMStateToExcel() {
-  apiMgjMStates({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,State Name,State Code,Districts,Centres,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.state_name + '","' + r.state_code + '",' + (r.district_count || 0) + ',' + (r.centre_count || 0) + ',' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-states.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  // 2026-07-06: client-side CSV blob replaced by backend xlsx endpoint.
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=states';
 }
 function _renderMgjMPagination(targetId, total, page, limit, fnName) {
   // Reuse the FLP renderListPagination markup so MGJ Master pagination looks
@@ -38380,16 +38454,8 @@ function viewMgjMDistrict(code) {
   });
 }
 function exportMgjMDistrictToExcel() {
-  apiMgjMDistricts({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,District Name,District Code,State,Centres,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.district_name + '","' + r.district_code + '","' + (r.state_name || r.state_code) + '",' + (r.centre_count || 0) + ',' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-districts.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  // 2026-07-06: client-side CSV blob replaced by backend xlsx endpoint.
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=districts';
 }
 function resetMgjMDistrictFilters() {
   ['mgjMDistrictFilterState','mgjMDistrictFilterName','mgjMDistrictFilterStatus'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
@@ -38493,16 +38559,8 @@ function viewMgjMCentre(code) {
   });
 }
 function exportMgjMCentreToExcel() {
-  apiMgjMCentres({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Centre Name,Centre Code,District,State,Areas,Batches,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.centre_name + '","' + r.centre_code + '","' + (r.district_name || r.district_code) + '","' + (r.state_name || r.state_code) + '",' + (r.area_count || 0) + ',' + (r.batch_count || 0) + ',' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-centres.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  // 2026-07-06: client-side CSV blob replaced by backend xlsx endpoint.
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=centres';
 }
 function onMgjMCentreFilterStateChange() {
   var s = (document.getElementById('mgjMCentreFilterState') || {}).value;
@@ -38610,16 +38668,8 @@ function loadMgjMAreas(page) {
   }).catch(function(err) { showUserError('loading MGJ areas', err); });
 }
 function exportMgjMAreaToExcel() {
-  apiMgjMAreas({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Area Name,Area Code,Centre,District,State,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.area_name + '","' + r.area_code + '","' + (r.centre_name || r.centre_code) + '","' + (r.district_name || r.district_code) + '","' + (r.state_name || r.state_code) + '",' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-areas.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  // 2026-07-06: client-side CSV blob replaced by backend xlsx endpoint.
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=areas';
 }
 function onMgjMAreaFilterStateChange() {
   var s = (document.getElementById('mgjMAreaFilterState') || {}).value;
@@ -38742,19 +38792,8 @@ function loadMgjMBatches(page) {
   }).catch(function(err) { showUserError('loading MGJ batches', err); });
 }
 function exportMgjMBatchToExcel() {
-  apiMgjMBatches({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    // 2026-06-12: Centre column re-added to CSV to match the on-screen table.
-    var csv = 'S.No,Batch Name,Year,State,Centre,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.name + '","' + (r.year || '') + '","' +
-             (r.state_name || r.state_code || '') + '","' +
-             (r.centre_name || r.centre_code || '') + '",' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-batches.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  // 2026-07-06: client-side CSV blob replaced by backend xlsx endpoint.
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=batches';
 }
 function resetMgjMBatchFilters() {
   ['mgjMBatchFilterState','mgjMBatchFilterCentre','mgjMBatchFilterStatus'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
@@ -38915,18 +38954,8 @@ function loadMgjMLeaderBatches(page) {
 }
 
 function exportMgjMLeaderBatchToExcel() {
-  apiMgjMLeaderBatches({ limit: 1000 }).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Leader Batch Name,Year,Centre,State,Status\n';
-    rows.forEach(function(r, i) {
-      csv += (i+1) + ',"' + r.name + '","' + (r.year || '') + '","' +
-             (r.centre_name || r.centre_code || '') + '","' +
-             (r.state_name || r.state_code || '') + '",' + r.status + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-leader-batches.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  // 2026-07-06: client-side CSV blob replaced by backend xlsx endpoint.
+  window.location.href = API_BASE + '/mgj-master/export/excel?entity=leader_batches';
 }
 
 function resetMgjMLeaderBatchFilters() {
@@ -40308,34 +40337,21 @@ function resetMgjLeaderFilters() {
 }
 
 function exportMgjLeaderToExcel() {
-  var p = { limit: 1000 };
-  ['mgjLdrFilterState','mgjLdrFilterCentre','mgjLdrFilterArea','mgjLdrFilterEducation'].forEach(function(id, i) {
-    var v = (document.getElementById(id) || {}).value;
-    var keys = ['state_code','centre_code','area_code','education'];
-    if (v) p[keys[i]] = v;
+  // 2026-07-06: Was a client-side CSV blob (8 cols, no member profile data,
+  // .csv). Now hits the backend /mgj-leaders/export/excel, returning a real
+  // .xlsx with the full profile (DOB, caste, religion, marital, address,
+  // family income, etc.). Passes the same filters so the export matches the
+  // on-screen list exactly (e.g. State=Delhi exports only Delhi leaders).
+  var qs = [];
+  var map = [['mgjLdrFilterState','state_code'],['mgjLdrFilterCentre','centre_code'],
+             ['mgjLdrFilterArea','area_code'],['mgjLdrFilterEducation','education']];
+  map.forEach(function(pair) {
+    var v = (document.getElementById(pair[0]) || {}).value;
+    if (v) qs.push(pair[1] + '=' + encodeURIComponent(v));
   });
   var n = ((document.getElementById('mgjLdrFilterName') || {}).value || '').trim();
-  if (n) p.name = n;
-  p = _applyRoleScopeFloor(p, 'mgj');
-  apiGet('/mgj-leaders' + _qs(p)).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Enrollment No.,Leader Name,Area,State,Education,Mobile No.,Status\n';
-    rows.forEach(function(r, i) {
-      csv += [
-        (i+1),
-        '"' + (r.enrollment_number || '') + '"',
-        '"' + (r.name || '') + '"',
-        '"' + (r.area_name || '') + '"',
-        '"' + (r.state_name || '') + '"',
-        '"' + (r.education || '') + '"',
-        '"' + (r.mobile || '') + '"',
-        '"' + (r.status || '') + '"',
-      ].join(',') + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-leaders.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  if (n) qs.push('name=' + encodeURIComponent(n));
+  window.location.href = API_BASE + '/mgj-leaders/export/excel' + (qs.length ? '?' + qs.join('&') : '');
 }
 
 // ---- + Add Leader (member picker) ----
@@ -41224,10 +41240,15 @@ function _mgjLtRescopeLeaderBatch(selId, stateCode, defaultLabel, cb) {
 // List-filter cascade: State change re-scopes the Batch filter, then the
 // list reloads (index.html onchange now points here instead of straight
 // at loadMgjLtList).
-function onMgjLtFilterStateChange() {
+function onMgjLtFilterStateChange(cascadeOnly) {
   var sc = (document.getElementById('mgjLtFilterState') || {}).value || '';
+  // 2026-07-06: Selecting a filter must NOT auto-search — search happens only
+  // on the Search button. The State dropdown still re-scopes the Leader Batch
+  // dropdown so its options match the chosen state (cascade), but when called
+  // with cascadeOnly=true (from the filter's onchange) it skips the list
+  // reload. The reset/full flows still pass no arg, so they reload as before.
   _mgjLtRescopeLeaderBatch('mgjLtFilterBatch', sc, 'All Leader Batches', function() {
-    loadMgjLtList(1);
+    if (!cascadeOnly) loadMgjLtList(1);
   });
 }
 

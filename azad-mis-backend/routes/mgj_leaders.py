@@ -423,3 +423,105 @@ def delete_log(log_id: int):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Log not found")
     return {"message": "Log deleted"}
+
+
+# =============================================================================
+# Export (xlsx)
+# =============================================================================
+# 2026-07-06: Replaces the frontend's client-side CSV blob (mgj-leaders.csv),
+# which exported only 8 columns and none of the member profile fields shown on
+# the Leader view page. This endpoint reuses the SAME filters as list_leaders
+# (state/district/centre/area/education/name/status + role scope), so the
+# export always matches what's on screen — e.g. filter State=Delhi with 2
+# Delhi leaders exports exactly those 2. Joins mgj_members for the full
+# profile (DOB, caste, religion, marital, address, family income, etc.).
+
+@router.get("/export/excel")
+def export_leaders(state_code: Optional[str] = None,
+                   district_code: Optional[str] = None,
+                   centre_code: Optional[str] = None,
+                   area_code: Optional[str] = None,
+                   education: Optional[str] = None,
+                   name: Optional[str] = None,
+                   status: Optional[str] = None,
+                   include_dropout: bool = True):
+    import io as _io, csv as _csv
+    from datetime import date as _date
+    from export_helper import csv_string_to_xlsx_response
+
+    conds: List[str] = ["l.deleted_at IS NULL", "m.deleted_at IS NULL"]
+    params: List = []
+    if state_code:    conds.append("m.state_code = %s");    params.append(state_code)
+    if district_code: conds.append("m.district_code = %s"); params.append(district_code)
+    if centre_code:   conds.append("m.centre_code = %s");   params.append(centre_code)
+    if area_code:     conds.append("m.area_code = %s");     params.append(area_code)
+    if education:     conds.append("m.education ILIKE %s"); params.append(f"%{education}%")
+    if name:          conds.append("m.name ILIKE %s");      params.append(f"%{name}%")
+    if status:
+        conds.append("l.status = %s"); params.append(status)
+    elif not include_dropout:
+        conds.append("COALESCE(l.status,'Active') NOT IN ('Walkout','Dropout')")
+        conds.append("COALESCE(m.status,'Active') NOT IN ('Walkout','Dropout')")
+    where = " AND ".join(conds)
+
+    with get_cursor() as cur:
+        cur.execute(f"""
+            SELECT l.status AS leader_status, l.created_at,
+                   COALESCE(lb.name, '')        AS leader_batch_name,
+                   m.enrollment_number, m.name, m.surname, m.mobile, m.email,
+                   m.date_of_birth, m.age_at_enrollment, m.gender,
+                   m.education, m.education_other,
+                   m.caste_category, m.community_religion,
+                   m.marital_status, m.age_at_marriage,
+                   m.address, m.permanent_address, m.group_number,
+                   m.family_members_count, m.monthly_family_income, m.per_capita_income,
+                   COALESCE(s.state_name,'')    AS state_name,
+                   COALESCE(d.district_name,'') AS district_name,
+                   COALESCE(c.centre_name,'')   AS centre_name,
+                   COALESCE(a.area_name,'')     AS area_name
+            FROM mgj_leaders l
+            JOIN mgj_members m ON l.member_id = m.id
+            LEFT JOIN mgj_states    s ON m.state_code    = s.state_code
+            LEFT JOIN mgj_districts d ON m.district_code = d.district_code
+            LEFT JOIN mgj_areas     a ON m.area_code     = a.area_code
+            LEFT JOIN mgj_centres   c ON m.centre_code   = c.centre_code
+            LEFT JOIN mgj_master_leader_batches lb
+                                       ON l.leader_batch_id = lb.id AND lb.deleted_at IS NULL
+            WHERE {where}
+            ORDER BY l.created_at DESC, l.id DESC
+        """, params)
+        rows = cur.fetchall()
+
+    def g(r, k):
+        v = r.get(k)
+        return '' if v is None else str(v)
+
+    out = _io.StringIO()
+    w = _csv.writer(out)
+    w.writerow([
+        'S.No', 'Enrollment No.', 'Leader Name', 'Status', 'Leader Batch',
+        'State', 'District', 'Centre', 'Area', 'Group',
+        'Date of Birth', 'Age at Enrollment', 'Gender',
+        'Education', 'Education (Other)', 'Caste / Category', 'Community / Religion',
+        'Marital Status', 'Age at Marriage',
+        'Mobile', 'Email', 'Address', 'Permanent Address',
+        'Family Members', 'Monthly Family Income', 'Per Capita Income',
+        'Promoted On',
+    ])
+    for i, r in enumerate(rows, 1):
+        w.writerow([
+            i, g(r, 'enrollment_number'), g(r, 'name'), g(r, 'leader_status'),
+            g(r, 'leader_batch_name'),
+            g(r, 'state_name'), g(r, 'district_name'), g(r, 'centre_name'), g(r, 'area_name'),
+            g(r, 'group_number'),
+            g(r, 'date_of_birth'), g(r, 'age_at_enrollment'), g(r, 'gender'),
+            g(r, 'education'), g(r, 'education_other'),
+            g(r, 'caste_category'), g(r, 'community_religion'),
+            g(r, 'marital_status'), g(r, 'age_at_marriage'),
+            g(r, 'mobile'), g(r, 'email'), g(r, 'address'), g(r, 'permanent_address'),
+            g(r, 'family_members_count'), g(r, 'monthly_family_income'), g(r, 'per_capita_income'),
+            str(r.get('created_at') or '')[:10],
+        ])
+
+    return csv_string_to_xlsx_response(
+        out.getvalue(), f"MGJ_Leaders_Export_{_date.today().isoformat()}.xlsx")
