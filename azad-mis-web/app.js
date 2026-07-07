@@ -38134,7 +38134,15 @@ function mgjAfSaveDraft(silent) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       _mgjAfSetStatus('draftSavedAt', new Date().toLocaleTimeString());
       _restoreBtn();
-      if (!silent) alert('Draft saved.');
+      // 2026-07-06: On an explicit (user-clicked) Save Draft, leave the
+      // assessment and return to the list — the draft is persisted and the
+      // user expects to exit, matching Submit/Delete behaviour. Silent saves
+      // (autosave, and the pre-save inside submitMgjAssessmentDraft) must NOT
+      // navigate, or they'd interrupt typing / break the submit flow.
+      if (!silent) {
+        alert('Draft saved.');
+        navigateTo('mgjAssessmentList');
+      }
     }).catch(function(err) {
       _mgjAfSetStatus('saveFailedRetry');
       _restoreBtn();
