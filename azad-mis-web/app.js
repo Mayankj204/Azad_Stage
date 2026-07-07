@@ -21923,7 +21923,7 @@ function _populateMgjFormState() {
   if (!sel) return;
   sel.innerHTML = '<option value="">Select State</option>';
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/mgj-master/dropdown/states', true);
+  xhr.open('GET', API_BASE + '/mgj-master/dropdown/states', true);
   xhr.onload = function() {
     if (xhr.status === 200) {
       var states = JSON.parse(xhr.responseText);
@@ -22276,7 +22276,7 @@ function _doLockMgjFiltersInner(stateSelId, centreSelId, centreMode, stateMode) 
       // DL (or PI whose centre couldn't be resolved): populate centres
       // for the user's state, selectable.
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', window.location.origin + '/api/mgj-master/dropdown/centres?state_code=' +
+      xhr.open('GET', API_BASE + '/mgj-master/dropdown/centres?state_code=' +
                encodeURIComponent(currentUser.mgj_state_code), true);
       xhr.onload = function() {
         if (xhr.status !== 200) return;
@@ -22417,7 +22417,7 @@ function _lockMgjFormForDlPi() {
 
     // Load centres for that state.
     var xhrC = new XMLHttpRequest();
-    xhrC.open('GET', window.location.origin + '/api/mgj-master/dropdown/centres?state_code=' +
+    xhrC.open('GET', API_BASE + '/mgj-master/dropdown/centres?state_code=' +
               encodeURIComponent(currentUser.mgj_state_code), true);
     xhrC.onload = function() {
       if (xhrC.status !== 200) return;
@@ -22461,7 +22461,7 @@ function onMgjFormStateChange(cb) {
   if (areaSel) areaSel.innerHTML = '<option value="">Select Area</option>';
   if (!sc) return;
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/mgj-master/dropdown/centres?state_code=' + encodeURIComponent(sc), true);
+  xhr.open('GET', API_BASE + '/mgj-master/dropdown/centres?state_code=' + encodeURIComponent(sc), true);
   xhr.onload = function() {
     if (xhr.status === 200) {
       var centres = JSON.parse(xhr.responseText);
@@ -22734,7 +22734,7 @@ function onMgjFormCentreChange() {
   _populateMgjBatchDropdown(stateCode, centreCode);
   if (!centreCode) return;
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/mgj-master/dropdown/areas?centre_code=' + encodeURIComponent(centreCode), true);
+  xhr.open('GET', API_BASE + '/mgj-master/dropdown/areas?centre_code=' + encodeURIComponent(centreCode), true);
   xhr.onload = function() {
     if (xhr.status === 200) {
       var areas = JSON.parse(xhr.responseText);
@@ -23742,6 +23742,27 @@ var akAssigningTrainingId = null;
 var akBatchCurrentPage = 1, akBatchPageLimit = 10;
 var editingAkBatchId = null, allocatingAkBatchId = null;
 var akSelectedPhoto = null;
+var _akSaving = false; // 2026-07-07: true while an AK save/submit is in flight — blocks duplicate rows from double-clicks
+
+// 2026-07-07: Real-time input filter. As the user types in any AK name or
+// occupation field, strip out every character that isn't a letter, space,
+// dot, apostrophe or hyphen — so numbers/symbols can never be entered in the
+// first place (the submit-time check in saveAkRecord is the backstop). A
+// single delegated 'input' listener covers the fields no matter when the Add
+// or Edit form is opened, so it never needs re-binding.
+(function _bindAkAlphaInputFilter() {
+  var ALPHA_FIELD_IDS = ['akName','akMotherName','akFatherName','akMotherOccupation','akFatherOccupation'];
+  document.addEventListener('input', function(e) {
+    var t = e.target;
+    if (!t || !t.id || ALPHA_FIELD_IDS.indexOf(t.id) === -1) return;
+    var cleaned = t.value.replace(/[^A-Za-z\s.'-]/g, '');
+    if (cleaned !== t.value) {
+      var pos = (typeof t.selectionStart === 'number') ? t.selectionStart : cleaned.length;
+      t.value = cleaned;
+      try { t.setSelectionRange(pos - 1, pos - 1); } catch (err) {}
+    }
+  }, true);
+})();
 
 // ---- AK LIST ----
 function loadAkListData(page) {
@@ -23905,7 +23926,7 @@ function exportAkToExcel() {
 
 // ---- ADD/EDIT AK ----
 function openAddAk() {
-  akFormMode = 'add'; editingAkId = null; akSelectedPhoto = null;
+  akFormMode = 'add'; editingAkId = null; akSelectedPhoto = null; _akSaving = false;
   navigateTo('addAk');
   setTimeout(function() {
     var _t = document.getElementById('addAkTitle'); if (_t) _t.innerHTML = '<i class="fas fa-user-plus"></i> Add New AK Leader';
@@ -24058,7 +24079,12 @@ function _proceedEditAk(id) {
       document.getElementById('akFamilyIncome').value = m.family_monthly_income || '';
       document.getElementById('akFamilyMembers').value = m.family_members || '';
       document.getElementById('akPerCapita').value = m.per_capita_income || '';
-      if (m.photo_url) { document.getElementById('akPhotoPreview').innerHTML = '<img src="' + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'; }
+      var _pp = document.getElementById('akPhotoPreview');
+      if (_pp) {
+        _pp.innerHTML = m.photo_url
+          ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">'
+          : '<i class="fas fa-camera"></i>';
+      }
     });
   }, 100);
 }
@@ -24150,6 +24176,9 @@ function _showFormBanner(pageId, msg) {
 function saveAkRecord(mode) {
   if (!mode) mode = 'submit';
   var isDraft = (mode === 'draft');
+  // 2026-07-07: guard against double-submit. If a save is already in flight,
+  // ignore the click so the same leader is not inserted multiple times.
+  if (_akSaving) return;
   function _v(id) { var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; }
 
   // Clear any previous inline errors before re-validating. This lets the
@@ -24196,6 +24225,15 @@ function saveAkRecord(mode) {
     }
     if (!_v('akMotherName'))       errors.push(['akMotherName',       'Please enter Name of Mother.']);
     if (!_v('akFatherName'))       errors.push(['akFatherName',       'Please enter Name of Father.']);
+    // 2026-07-07: Name & occupation fields must be alphabetic only (letters,
+    // spaces and . ' - allowed). Digits/symbols are rejected. Only checked when
+    // the field is non-empty; the required checks above handle emptiness.
+    var _nameRe = /^[A-Za-z\s.'-]+$/;
+    if (_v('akName')             && !_nameRe.test(_v('akName')))             errors.push(['akName',             'Name must contain only alphabets.']);
+    if (_v('akMotherName')       && !_nameRe.test(_v('akMotherName')))       errors.push(['akMotherName',       'Mother\'s name must contain only alphabets.']);
+    if (_v('akFatherName')       && !_nameRe.test(_v('akFatherName')))       errors.push(['akFatherName',       'Father\'s name must contain only alphabets.']);
+    if (_v('akMotherOccupation') && !_nameRe.test(_v('akMotherOccupation'))) errors.push(['akMotherOccupation', 'Occupation must contain only alphabets.']);
+    if (_v('akFatherOccupation') && !_nameRe.test(_v('akFatherOccupation'))) errors.push(['akFatherOccupation', 'Occupation must contain only alphabets.']);
     if (!_v('akFamilyIncome'))     errors.push(['akFamilyIncome',     'Please enter Family Monthly Income.']);
     if (!_v('akFamilyMembers'))    errors.push(['akFamilyMembers',    'Please enter Number of Family Members.']);
 
@@ -24275,6 +24313,8 @@ function saveAkRecord(mode) {
     status: finalStatus
   };
 
+  // 2026-07-07: mark the save in-flight so repeat clicks are ignored (see guard at top).
+  _akSaving = true;
   var promise = (akFormMode === 'edit' && editingAkId) ? apiUpdateAk(editingAkId, data) : apiCreateAk(data);
   promise.then(function(res) {
     var newId = res.id || editingAkId;
@@ -24288,17 +24328,23 @@ function saveAkRecord(mode) {
     } else {
       savedMsg = 'AK Leader created!';
     }
-    // Upload photo if selected
-    if (akSelectedPhoto && newId) {
-      apiAkUploadPhoto(newId, akSelectedPhoto).then(function() {
-        alert(savedMsg);
-        navigateTo('akList');
-      });
-    } else {
+    // 2026-07-07: Always redirect to the list after saving — for drafts and
+    // submits alike, and even if the (optional) photo upload fails, since the
+    // record itself is already saved. Clearing _akSaving re-enables the form.
+    function _afterAkSave() {
+      _akSaving = false;
       alert(savedMsg);
       navigateTo('akList');
     }
-  }).catch(function(err) { showUserError('processing your request', err); });
+    if (akSelectedPhoto && newId) {
+      apiAkUploadPhoto(newId, akSelectedPhoto).then(_afterAkSave).catch(_afterAkSave);
+    } else {
+      _afterAkSave();
+    }
+  }).catch(function(err) {
+    _akSaving = false; // release the guard so the user can correct and retry
+    showUserError('processing your request', err);
+  });
 }
 
 // ── Review modal ───────────────────────────────────────────────────────────
@@ -24418,7 +24464,7 @@ function _populateAkStatesInto(selectId, defaultLabel) {
   _akStateLoadingMap[selectId] = true;
   var lbl = defaultLabel || 'Select State';
   sel.innerHTML = '<option value="">' + lbl + '</option>';
-  var url = window.location.origin + '/api/ak/geo/states';
+  var url = API_BASE + '/ak/geo/states';
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.onload = function() {
@@ -24495,7 +24541,7 @@ function _loadAkCentresInto(selectId, stateCode, cb, defaultLabel) {
   }
   sel.innerHTML = '<option value="">' + lbl + '</option>';
   if (!stateCode) return;
-  var url = window.location.origin + '/api/ak/geo/centres?state_code=' + encodeURIComponent(stateCode);
+  var url = API_BASE + '/ak/geo/centres?state_code=' + encodeURIComponent(stateCode);
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.onload = function() {
@@ -24567,7 +24613,7 @@ function _loadAkFormBatches(stateCode, centreCode) {
   var qs = ['limit=200'];
   if (stateCode)  qs.push('state_code='  + encodeURIComponent(stateCode));
   if (centreCode) qs.push('centre_code=' + encodeURIComponent(centreCode));
-  var url = window.location.origin + '/api/ak-batches?' + qs.join('&');
+  var url = API_BASE + '/ak-batches?' + qs.join('&');
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.onload = function() {
@@ -24737,9 +24783,11 @@ function loadAkDetail(id) {
       escHtml(m.centre_name || '') + ' &nbsp;|&nbsp; ' + escHtml(m.batch_name || '') + ' &nbsp;|&nbsp; ' + statusBadge(m.status);
     var wo = document.getElementById('btnAkWalkOut');
     if (wo) wo.style.display = (m.status === 'Active') ? '' : 'none';
-    if (m.photo_url) {
-      var pc = document.getElementById('akViewPhotoContainer');
-      if (pc) pc.innerHTML = '<img src="' + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">';
+    var pc = document.getElementById('akViewPhotoContainer');
+    if (pc) {
+      pc.innerHTML = m.photo_url
+        ? '<img src="' + API_BASE.replace('/api', '') + m.photo_url + '" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">'
+        : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;color:#999;"><i class="fas fa-user"></i></div>';
     }
     var bg = document.getElementById('akViewBasicGrid');
     if (bg) {
@@ -25211,7 +25259,7 @@ function _populateAkTrFormState() {
   }
   sel.innerHTML = '<option value="">Select State</option>';
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/ak/geo/states', true);
+  xhr.open('GET', API_BASE + '/ak/geo/states', true);
   xhr.onload = function() {
     if (xhr.status !== 200) {
       console.error('[AK Training] state XHR HTTP', xhr.status);
@@ -25300,7 +25348,7 @@ function _loadAkBatchesInto(selectId, stateCode, selectedId, defaultLabel, centr
   //     the backend itself returns the same batch twice.
   _akBatchesReqSeqMap[selectId] = (_akBatchesReqSeqMap[selectId] || 0) + 1;
   var mySeq = _akBatchesReqSeqMap[selectId];
-  var url = window.location.origin + '/api/ak-batches?' + qs;
+  var url = API_BASE + '/ak-batches?' + qs;
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.onload = function() {
@@ -28273,7 +28321,7 @@ function _loadAkStatesForModal(selectId) {
   }
   sel.innerHTML = '<option value="">Select State</option>';
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/ak/geo/states', true);
+  xhr.open('GET', API_BASE + '/ak/geo/states', true);
   xhr.onload = function() {
     if (xhr.status !== 200) return;
     try {
@@ -28393,7 +28441,7 @@ function onAkAddaFormStateChange(cb) {
   if (!sc) return;
   // Load centres
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/ak/geo/centres?state_code=' + encodeURIComponent(sc), true);
+  xhr.open('GET', API_BASE + '/ak/geo/centres?state_code=' + encodeURIComponent(sc), true);
   xhr.onload = function() {
     if (xhr.status === 200) {
       var centres = JSON.parse(xhr.responseText);
@@ -30815,7 +30863,7 @@ function viewAlumniTrackingEntry(trackingId) {
   // Fetch the specific entry via the alumni's tracking list
   // We need to find which alumni this belongs to - use a direct XHR
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', window.location.origin + '/api/ak-alumni/' + trackingAlumniId + '/tracking', true);
+  xhr.open('GET', API_BASE + '/ak-alumni/' + trackingAlumniId + '/tracking', true);
   xhr.onload = function() {
     if (xhr.status === 200) {
       var entries = JSON.parse(xhr.responseText);
@@ -30866,7 +30914,7 @@ function viewAlumniTrackingEntry(trackingId) {
 
 function exportAlumniTracking() {
   if (!trackingAlumniId) { alert('No alumni selected.'); return; }
-  window.open(window.location.origin + '/api/ak-alumni/' + trackingAlumniId + '/tracking/export', '_blank');
+  window.open(API_BASE + '/ak-alumni/' + trackingAlumniId + '/tracking/export', '_blank');
 }
 
 function goBackFromTrackingView() {
@@ -36431,6 +36479,14 @@ function resetMgjAssessmentFilters() {
 // current filters at a high limit and turns it into a CSV file the
 // browser downloads. Avoids adding a new backend endpoint.
 function exportMgjAssessmentToExcel() {
+
+  // 2026-07-06: Was a client-side CSV blob with ONLY 12 summary columns
+  // (no responses) saved as mgj-assessments-<date>.csv. Now hits the backend
+  // /mgj-assessments/export/excel, which returns a real .xlsx with merged
+  // Baseline/Midline/Endline group banners and every filled answer in
+  // phase-labelled columns. Same filter params; backend reuses the grouped
+  // list query so State->Centre cascade, Type, Status, Name + role scope all
+  // apply exactly like the on-screen list.
   // 2026-07-06: Was a client-side CSV blob (12 summary cols, no answers,
   // .csv). Now hits the backend /mgj-assessments/export/excel, returning a
   // real .xlsx with merged Baseline/Midline/Endline group banners and every
@@ -39405,7 +39461,7 @@ function exportMgjAlumniToExcel() {
   if (b) p.batch       = b;
   if (n) p.name        = n;
   p = _applyRoleScopeFloor(p, 'mgj');
-  window.location.href = window.location.origin + '/api/mgj-alumni/export/excel' + _qs(p);
+  window.location.href = API_BASE + '/mgj-alumni/export/excel' + _qs(p);
 }
 
 // Strict cascade on the Alumni list filter:
@@ -45581,7 +45637,7 @@ function _loadAkDashBatches(stateCode, centreCode) {
   else if (stateCode)  qs += '&state_code='  + encodeURIComponent(stateCode);
   var mySeq = ++_akDashBatchReqSeq;
   sel.innerHTML = '<option value="">All Batches</option>';
-  fetch(window.location.origin + '/api/ak-batches?' + qs, {
+  fetch(API_BASE + '/ak-batches?' + qs, {
     headers: authToken ? { Authorization: 'Bearer ' + authToken } : {}
   }).then(function(r) { return r.json(); }).then(function(result) {
     // Drop stale responses — only the latest call may render.
