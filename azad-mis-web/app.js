@@ -41197,10 +41197,15 @@ function _mgjLtRescopeLeaderBatch(selId, stateCode, defaultLabel, cb) {
 // List-filter cascade: State change re-scopes the Batch filter, then the
 // list reloads (index.html onchange now points here instead of straight
 // at loadMgjLtList).
-function onMgjLtFilterStateChange() {
+function onMgjLtFilterStateChange(cascadeOnly) {
   var sc = (document.getElementById('mgjLtFilterState') || {}).value || '';
+  // 2026-07-06: Selecting a filter must NOT auto-search — search happens only
+  // on the Search button. The State dropdown still re-scopes the Leader Batch
+  // dropdown so its options match the chosen state (cascade), but when called
+  // with cascadeOnly=true (from the filter's onchange) it skips the list
+  // reload. The reset/full flows still pass no arg, so they reload as before.
   _mgjLtRescopeLeaderBatch('mgjLtFilterBatch', sc, 'All Leader Batches', function() {
-    loadMgjLtList(1);
+    if (!cascadeOnly) loadMgjLtList(1);
   });
 }
 
