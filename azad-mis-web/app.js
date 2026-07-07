@@ -23751,7 +23751,7 @@ var _akSaving = false; // 2026-07-07: true while an AK save/submit is in flight 
 // single delegated 'input' listener covers the fields no matter when the Add
 // or Edit form is opened, so it never needs re-binding.
 (function _bindAkAlphaInputFilter() {
-  var ALPHA_FIELD_IDS = ['akName','akMotherName','akFatherName','akMotherOccupation','akFatherOccupation'];
+  var ALPHA_FIELD_IDS = ['akName','akMotherName','akFatherName','akMotherOccupation','akFatherOccupation','akTrTrainer','csTitle','akCsTitle','flpCsTitle'];
   document.addEventListener('input', function(e) {
     var t = e.target;
     if (!t || !t.id || ALPHA_FIELD_IDS.indexOf(t.id) === -1) return;
@@ -33916,7 +33916,6 @@ function loadSanginiView() {
         _detailCell('HV Participants', r.home_visit_participants != null ? r.home_visit_participants : 0) +
         _detailCell('HV Male', r.home_visit_male != null ? r.home_visit_male : 0) +
         _detailCell('HV Female', r.home_visit_female != null ? r.home_visit_female : 0) +
-        _detailCell('Phone Calls', r.phone_calls != null ? r.phone_calls : 0) +
         _detailCell('Choupals', r.choupals != null ? r.choupals : 0) +
         _detailCell('Ch Participants', r.choupal_participants != null ? r.choupal_participants : 0) +
         _detailCell('Ch Male', r.choupal_male != null ? r.choupal_male : 0) +
