@@ -40281,34 +40281,21 @@ function resetMgjLeaderFilters() {
 }
 
 function exportMgjLeaderToExcel() {
-  var p = { limit: 1000 };
-  ['mgjLdrFilterState','mgjLdrFilterCentre','mgjLdrFilterArea','mgjLdrFilterEducation'].forEach(function(id, i) {
-    var v = (document.getElementById(id) || {}).value;
-    var keys = ['state_code','centre_code','area_code','education'];
-    if (v) p[keys[i]] = v;
+  // 2026-07-06: Was a client-side CSV blob (8 cols, no member profile data,
+  // .csv). Now hits the backend /mgj-leaders/export/excel, returning a real
+  // .xlsx with the full profile (DOB, caste, religion, marital, address,
+  // family income, etc.). Passes the same filters so the export matches the
+  // on-screen list exactly (e.g. State=Delhi exports only Delhi leaders).
+  var qs = [];
+  var map = [['mgjLdrFilterState','state_code'],['mgjLdrFilterCentre','centre_code'],
+             ['mgjLdrFilterArea','area_code'],['mgjLdrFilterEducation','education']];
+  map.forEach(function(pair) {
+    var v = (document.getElementById(pair[0]) || {}).value;
+    if (v) qs.push(pair[1] + '=' + encodeURIComponent(v));
   });
   var n = ((document.getElementById('mgjLdrFilterName') || {}).value || '').trim();
-  if (n) p.name = n;
-  p = _applyRoleScopeFloor(p, 'mgj');
-  apiGet('/mgj-leaders' + _qs(p)).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,Enrollment No.,Leader Name,Area,State,Education,Mobile No.,Status\n';
-    rows.forEach(function(r, i) {
-      csv += [
-        (i+1),
-        '"' + (r.enrollment_number || '') + '"',
-        '"' + (r.name || '') + '"',
-        '"' + (r.area_name || '') + '"',
-        '"' + (r.state_name || '') + '"',
-        '"' + (r.education || '') + '"',
-        '"' + (r.mobile || '') + '"',
-        '"' + (r.status || '') + '"',
-      ].join(',') + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-leaders.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  if (n) qs.push('name=' + encodeURIComponent(n));
+  window.location.href = API_BASE + '/mgj-leaders/export/excel' + (qs.length ? '?' + qs.join('&') : '');
 }
 
 // ---- + Add Leader (member picker) ----
