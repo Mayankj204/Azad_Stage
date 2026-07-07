@@ -20537,10 +20537,14 @@ function _akCsLoadBatches(stateCode, centreCode) {
   var sel = document.getElementById('akStoryFilterBatch');
   if (!sel) return;
   sel.innerHTML = '<option value="">All Batches</option>';
-  var parts = [];
+  // 2026-07-07: mirror the working AK batch cascades (Add AK / Training), which
+  // pass limit=100. Without a limit the /ak-batches default page size can
+  // truncate the result so the picked centre's batches never appear — making
+  // the Centre->Batch cascade look broken.
+  var parts = ['limit=100'];
   if (centreCode)     parts.push('centre_code=' + encodeURIComponent(centreCode));
   else if (stateCode) parts.push('state_code='  + encodeURIComponent(stateCode));
-  var qs = parts.length ? '?' + parts.join('&') : '';
+  var qs = '?' + parts.join('&');
   apiGet('/ak-batches' + qs).then(function(rs) {
     var list = (rs && rs.data) ? rs.data : (Array.isArray(rs) ? rs : []);
     list.forEach(function(b) {
@@ -28262,6 +28266,15 @@ function onAkAddaFilterStateChange() {
   _loadAkCentresInto('akAddaFilterCentre', sc, null, 'All Centres');
   _loadAkBatchesInto('akAddaFilterBatch', sc, null, 'All Batches');
 }
+// 2026-07-07: Centre -> Batch cascade on the Adda list filter. The Centre
+// dropdown previously had no onchange, so changing centre never narrowed the
+// Batch list. Mirrors the AK List / Case Study filters: pass centre_code so
+// the batch dropdown shows only that centre's batches.
+function onAkAddaFilterCentreChange() {
+  var sc = (document.getElementById('akAddaFilterState')  || {}).value || '';
+  var cc = (document.getElementById('akAddaFilterCentre') || {}).value || '';
+  _loadAkBatchesInto('akAddaFilterBatch', sc, null, 'All Batches', cc);
+}
 function exportAkAddaToExcel() {
   var s = document.getElementById('akAddaFilterState');
   var c = document.getElementById('akAddaFilterCentre');
@@ -28414,6 +28427,13 @@ function openEditAkAdda(id) {
       onAkAddaFormStateChange(function() {
         document.getElementById('akAddaCentre').value = a.centre_code || '';
         onAkAddaFormCentreChange(function() {
+          // 2026-07-07: the State/Centre cascade handlers above reset
+          // _akAddaMainSelectedLeaderIds (correct for user-driven changes, but it
+          // also wipes our edit-mode prefill). Restore the saved leader ids now
+          // that the cascade has settled, so the picker renders them ticked with
+          // name chips above.
+          _akAddaMainSelectedLeaderIds = {};
+          for (var _li = 0; _li < lids.length; _li++) _akAddaMainSelectedLeaderIds[lids[_li]] = true;
           if (a.batch_id) {
             document.getElementById('akAddaBatch').value = a.batch_id;
             // Reload leaders restricted to the saved batch — the whitelist
@@ -33352,17 +33372,48 @@ function _populateSanginiFilterMonths() {
   }).catch(function() {});
 }
 
-function _populateSanginiFilterNames() {
+function _populateSanginiFilterNames(month) {
   var sel = document.getElementById('sanginiFilterName');
   if (!sel) return;
-  apiSanginiNames().then(function(names) {
+  function _fill(names) {
     sel.innerHTML = '<option value="">All Sanginis</option>';
     (names || []).forEach(function(n) {
       var opt = document.createElement('option');
       opt.value = n; opt.textContent = n;
       sel.appendChild(opt);
     });
-  }).catch(function() {});
+  }
+  // 2026-07-07: When a month is selected, cascade the Name dropdown to only the
+  // sanginis that reported in that month. Derived from the list endpoint
+  // (/sangini?month=…), which already supports month filtering and returns
+  // sangini_name on each row — so no backend change is needed. With no month,
+  // fall back to the full names list.
+  if (month) {
+    apiSanginiList({ month: month, limit: 1000 }).then(function(resp) {
+      var rows = (resp && resp.data) || [];
+      var seen = {}, names = [];
+      rows.forEach(function(r) {
+        var nm = r.sangini_name;
+        if (nm && !seen[nm]) { seen[nm] = 1; names.push(nm); }
+      });
+      names.sort();
+      _fill(names);
+    }).catch(function() {});
+  } else {
+    apiSanginiNames().then(_fill).catch(function() {});
+  }
+}
+
+// 2026-07-07: Month → Name cascade on the Sangini list filter. Picking a month
+// repopulates the Name dropdown with just that month's sanginis (clearing any
+// stale name selection first), then reloads the list.
+function onSanginiFilterMonthChange() {
+  var month = (document.getElementById('sanginiFilterMonth') || {}).value || '';
+  var nameSel = document.getElementById('sanginiFilterName');
+  if (nameSel) nameSel.value = '';
+  _populateSanginiFilterNames(month);
+  sanginiCurrentPage = 1;
+  loadSanginiListData(1);
 }
 
 function exportSanginiToExcel() {
@@ -33479,6 +33530,7 @@ function _populateSanginiAddaDropdown(force) {
       var loc = r.centre_name ? ' (' + r.centre_name + ')' : '';
       opt.textContent = rawName + loc;
       opt.setAttribute('data-sangini-name', rawName);
+      opt.setAttribute('data-centre-code', String(r.centre_code || ''));
       opt.setAttribute('data-active-leaders', String(r.active_leaders || 0));
       opt.setAttribute('data-active-addas',   String(r.active_addas   || 0));
       opt.setAttribute('data-active-members', String(r.active_adda_members || 0));
@@ -33503,6 +33555,12 @@ function onSanginiAddaChange() {
   if (!sel) return;
   var opt = sel.options[sel.selectedIndex];
   if (hid) hid.value = (opt && opt.value) ? opt.value : '';
+  // 2026-07-07: Cascade the Batch dropdown to the selected Sangini's centre so
+  // only that Sangini's batches show. centre_code is stamped on each name option
+  // from its Adda profile; if absent (legacy row), fall back to all active
+  // batches. Reloading resets the batch pick, which is what we want on a new name.
+  var _cc = opt ? (opt.getAttribute('data-centre-code') || '') : '';
+  _loadSanginiBatchOptions('', _cc);
   // Trigger the reuse lookup when both Name and Batch are now set.
   _lookupSanginiReuse();
 }
@@ -33553,10 +33611,15 @@ function _lookupSanginiReuse() {
 // 2026-06-02: Populate the Batch dropdown on the Sangini form. Lists
 // all active AK batches globally (no state/centre scope — the user
 // can pick any active batch for the reuse cycle lookup).
-function _loadSanginiBatchOptions(selectedBatch) {
+function _loadSanginiBatchOptions(selectedBatch, centreCode) {
   var sel = document.getElementById('sanginiFormBatch');
   if (!sel) return;
-  apiAkBatchList({ status: 'Active', limit: 500 }).then(function(resp) {
+  // 2026-07-07: when a centreCode is passed (from the Name cascade), narrow the
+  // batches to that centre; otherwise list all active batches (original behaviour,
+  // used by edit-mode hydration and first open).
+  var _p = { status: 'Active', limit: 500 };
+  if (centreCode) _p.centre_code = centreCode;
+  apiAkBatchList(_p).then(function(resp) {
     var rows = (resp && resp.data) || resp || [];
     // Reset to placeholder.
     sel.innerHTML = '<option value="">-- Select Batch --</option>';

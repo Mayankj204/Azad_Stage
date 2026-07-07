@@ -14739,7 +14739,7 @@
       </div>
       <div class="filter-panel">
         <div class="filter-group"><label>State</label><select id="akAddaFilterState" onchange="onAkAddaFilterStateChange()"><option value="">All States</option></select></div>
-        <div class="filter-group"><label>Centre</label><select id="akAddaFilterCentre"><option value="">All Centres</option></select></div>
+        <div class="filter-group"><label>Centre</label><select id="akAddaFilterCentre" onchange="onAkAddaFilterCentreChange()"><option value="">All Centres</option></select></div>
         <div class="filter-group"><label>Batch</label><select id="akAddaFilterBatch"><option value="">All Batches</option></select></div>
         <div class="filter-group"><label>Status</label><select id="akAddaFilterStatus"><option value="">All</option><option>Active</option><option>Walkout</option></select></div>
         <div class="filter-group"><label>Name</label><input type="text" id="akAddaFilterName" placeholder="Search by leader name"></div>
@@ -14786,7 +14786,7 @@
         <button class="btn btn-primary fab" onclick="openSanginiForm('add')"><i class="fas fa-plus"></i>&nbsp; Add Sangini</button>
       </div>
       <div class="filter-panel">
-        <div class="filter-group"><label>Month</label><select id="sanginiFilterMonth"><option value="">All Months</option></select></div>
+        <div class="filter-group"><label>Month</label><select id="sanginiFilterMonth" onchange="onSanginiFilterMonthChange()"><option value="">All Months</option></select></div>
         <div class="filter-group"><label>Sangini Name</label><select id="sanginiFilterName"><option value="">All Sanginis</option></select></div>
         <button class="btn btn-primary" onclick="applySanginiFilters()"><i class="fas fa-search"></i> Search</button>
         <button class="btn btn-outline" onclick="resetSanginiFilters()"><i class="fas fa-redo"></i> Reset</button>
