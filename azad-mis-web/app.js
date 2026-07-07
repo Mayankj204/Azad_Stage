@@ -23755,11 +23755,29 @@ var _akSaving = false; // 2026-07-07: true while an AK save/submit is in flight 
 // single delegated 'input' listener covers the fields no matter when the Add
 // or Edit form is opened, so it never needs re-binding.
 (function _bindAkAlphaInputFilter() {
-  var ALPHA_FIELD_IDS = ['akName','akMotherName','akFatherName','akMotherOccupation','akFatherOccupation','akTrTrainer','csTitle','akCsTitle','flpCsTitle'];
+  var ALPHA_FIELD_IDS = ['akName','akMotherName','akFatherName','akMotherOccupation','akFatherOccupation','akTrTrainer','csTitle','akCsTitle','flpCsTitle','akAgmTopic','akAgmFilterTopic'];
   document.addEventListener('input', function(e) {
     var t = e.target;
     if (!t || !t.id || ALPHA_FIELD_IDS.indexOf(t.id) === -1) return;
     var cleaned = t.value.replace(/[^A-Za-z\s.'-]/g, '');
+    if (cleaned !== t.value) {
+      var pos = (typeof t.selectionStart === 'number') ? t.selectionStart : cleaned.length;
+      t.value = cleaned;
+      try { t.setSelectionRange(pos - 1, pos - 1); } catch (err) {}
+    }
+  }, true);
+})();
+
+// 2026-07-07: Real-time input filter for year fields (AGM Year). The Year is a
+// financial-year value like "2025-26", so we allow digits and a hyphen only and
+// strip letters/other symbols as the user types. Delegated so it needs no
+// re-binding when the form opens.
+(function _bindAkNumericYearFilter() {
+  var YEAR_FIELD_IDS = ['akAgmYear','akAgmFilterYear'];
+  document.addEventListener('input', function(e) {
+    var t = e.target;
+    if (!t || !t.id || YEAR_FIELD_IDS.indexOf(t.id) === -1) return;
+    var cleaned = t.value.replace(/[^0-9-]/g, '');
     if (cleaned !== t.value) {
       var pos = (typeof t.selectionStart === 'number') ? t.selectionStart : cleaned.length;
       t.value = cleaned;
