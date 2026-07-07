@@ -41131,31 +41131,20 @@ function resetMgjLtFilters() {
 }
 
 function exportMgjLtToExcel() {
-  var p = { limit: 1000 };
-  ['mgjLtFilterState','mgjLtFilterBatch','mgjLtFilterPhase','mgjLtFilterName'].forEach(function(id, i) {
-    var v = (document.getElementById(id) || {}).value;
-    var keys = ['state_code','batch_id','phase','name'];
-    if (v) p[keys[i]] = v;
+  // 2026-07-06: Was a client-side CSV blob (7 cols, no month/type/centre/
+  // participants, .csv). Now hits the backend /mgj-leader-trainings/export/
+  // excel, returning a real .xlsx with full detail. Passes the same filters
+  // so the export matches the on-screen list (e.g. State=Delhi -> only Delhi).
+  var qs = [];
+  var map = [['mgjLtFilterState','state_code'],['mgjLtFilterBatch','batch_id'],
+             ['mgjLtFilterPhase','phase']];
+  map.forEach(function(pair) {
+    var v = (document.getElementById(pair[0]) || {}).value;
+    if (v) qs.push(pair[1] + '=' + encodeURIComponent(v));
   });
-  p = _applyRoleScopeFloor(p, 'mgj');
-  apiGet('/mgj-leader-trainings' + _qs(p)).then(function(resp) {
-    var rows = resp.data || [];
-    var csv = 'S.No,State,Batch,Phase,Year,Topics,Participants\n';
-    rows.forEach(function(r, i) {
-      csv += [
-        (i+1),
-        '"' + (r.state_name || r.state_code || '') + '"',
-        '"' + (r.batch_name || '') + '"',
-        '"' + (r.phase || '') + '"',
-        '"' + (r.year || '') + '"',
-        '"' + (r.topics_summary || '').replace(/"/g, "'") + '"',
-        (r.participant_count || 0),
-      ].join(',') + '\n';
-    });
-    var blob = new Blob([csv], {type:'text/csv'}); var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'mgj-leader-trainings.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
+  var n = ((document.getElementById('mgjLtFilterName') || {}).value || '').trim();
+  if (n) qs.push('name=' + encodeURIComponent(n));
+  window.location.href = API_BASE + '/mgj-leader-trainings/export/excel' + (qs.length ? '?' + qs.join('&') : '');
 }
 
 // ---- ADD TRAINING ----

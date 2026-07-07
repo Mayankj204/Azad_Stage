@@ -755,3 +755,97 @@ def delete_social_action(sa_id: int):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Social action not found")
     return {"message": "Deleted"}
+
+
+# =============================================================================
+# Export (xlsx)
+# =============================================================================
+# 2026-07-06: Replaces the frontend client-side CSV blob
+# (mgj-leader-trainings.csv), which exported only 7 columns and no full detail
+# (no month/type, no centre, no participant names, no dates). This endpoint
+# reuses the SAME filters as list_trainings (state/district/centre/batch/
+# phase/name), so the export matches the on-screen list exactly. Adds Centre
+# (via the leader batch), full Topics list, participant COUNT and NAMES, month,
+# type, year, and created date.
+
+@router.get("/export/excel")
+def export_trainings(state_code: Optional[str] = None,
+                     district_code: Optional[str] = None,
+                     centre_code: Optional[str] = None,
+                     batch_id: Optional[int] = None,
+                     phase: Optional[str] = None,
+                     name: Optional[str] = None):
+    import io as _io, csv as _csv
+    from datetime import date as _date
+    from export_helper import csv_string_to_xlsx_response
+
+    conds: List[str] = ["t.deleted_at IS NULL"]
+    params: List = []
+    if state_code:
+        conds.append("t.state_code = %s"); params.append(state_code)
+    if district_code:
+        conds.append("t.batch_id IN (SELECT id FROM mgj_master_leader_batches "
+                     "WHERE centre_code IN (SELECT centre_code FROM mgj_centres WHERE district_code = %s))")
+        params.append(district_code)
+    if centre_code:
+        conds.append("t.batch_id IN (SELECT id FROM mgj_master_leader_batches WHERE centre_code = %s)")
+        params.append(centre_code)
+    if batch_id:
+        conds.append("t.batch_id = %s"); params.append(batch_id)
+    if phase:
+        conds.append("t.phase = %s"); params.append(phase)
+    if name:
+        conds.append(
+            "EXISTS (SELECT 1 FROM mgj_leader_training_topics tt "
+            "        JOIN mgj_leader_topics tp ON tt.topic_id = tp.id "
+            "        WHERE tt.training_id = t.id AND tp.name ILIKE %s)")
+        params.append(f"%{name}%")
+    where = " AND ".join(conds)
+
+    with get_cursor() as cur:
+        cur.execute(f"""
+            SELECT t.id, t.state_code, t.phase, t.year, t.month, t.type_of_training,
+                   t.created_at,
+                   COALESCE(s.state_name, '') AS state_name,
+                   COALESCE(b.name, '')        AS batch_name,
+                   COALESCE(bc.centre_name, '') AS centre_name,
+                   (SELECT COUNT(*) FROM mgj_leader_training_participants p WHERE p.training_id = t.id) AS participant_count,
+                   (SELECT STRING_AGG(tp.name, ', ' ORDER BY tt.position, tp.name)
+                      FROM mgj_leader_training_topics tt
+                      JOIN mgj_leader_topics tp ON tt.topic_id = tp.id
+                     WHERE tt.training_id = t.id) AS topics_summary,
+                   (SELECT STRING_AGG(pm.name, ', ' ORDER BY pm.name)
+                      FROM mgj_leader_training_participants p
+                      JOIN mgj_leaders pl ON p.leader_id = pl.id
+                      JOIN mgj_members pm ON pl.member_id = pm.id
+                     WHERE p.training_id = t.id) AS participant_names
+            FROM mgj_leader_trainings t
+            LEFT JOIN mgj_states                s ON t.state_code = s.state_code
+            LEFT JOIN mgj_master_leader_batches b ON t.batch_id   = b.id
+            LEFT JOIN mgj_centres              bc ON b.centre_code = bc.centre_code
+            WHERE {where}
+            ORDER BY t.created_at DESC, t.id DESC
+        """, params)
+        rows = cur.fetchall()
+
+    def g(r, k):
+        v = r.get(k)
+        return '' if v is None else str(v)
+
+    out = _io.StringIO()
+    w = _csv.writer(out)
+    w.writerow([
+        'S.No', 'State', 'Centre', 'Leader Batch', 'Phase', 'Year', 'Month',
+        'Type of Training', 'Topics', 'No. of Participants', 'Participants',
+        'Created On',
+    ])
+    for i, r in enumerate(rows, 1):
+        w.writerow([
+            i, g(r, 'state_name'), g(r, 'centre_name'), g(r, 'batch_name'),
+            g(r, 'phase'), g(r, 'year'), g(r, 'month'), g(r, 'type_of_training'),
+            g(r, 'topics_summary'), g(r, 'participant_count'), g(r, 'participant_names'),
+            str(r.get('created_at') or '')[:10],
+        ])
+
+    return csv_string_to_xlsx_response(
+        out.getvalue(), f"MGJ_Leader_Trainings_Export_{_date.today().isoformat()}.xlsx")

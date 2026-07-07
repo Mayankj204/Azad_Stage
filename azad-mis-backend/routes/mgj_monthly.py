@@ -261,42 +261,97 @@ def export_monthly(
         where = " AND ".join(conds)
         cur.execute(f"""
             SELECT to_char(a.month, 'FMMon-YY') as month_label,
+                   to_char(a.month, 'YYYY-MM') as month_ym,
+                   COALESCE(st.state_name, '') as state_name,
                    COALESCE(nc.centre_name, '') as centre_name,
                    COALESCE(b.name, '') as batch_name,
                    a.pakhwada_planned, a.pakhwada_conducted, a.pakhwada_participants,
+                   a.pakhwada_direct, a.pakhwada_one_to_one,
                    a.sports_sessions, a.sports_participants,
-                   a.hh_visits, a.parent_meeting_total, a.parent_meeting_male, a.parent_meeting_female,
-                   a.assignments_completed, a.www_women_enrollment, a.gbv_reached,
-                   a.leader_community_actions, a.leader_phase_training, a.leader_refresher_training,
+                   a.hh_visits, a.parent_meeting_total, a.parent_meeting_male,
+                   a.parent_meeting_female, a.male_only_meetings,
+                   a.assignments_completed, a.assignment_groups,
+                   a.canopy_activities, a.mike_prachar,
+                   a.www_women_interested, a.www_women_registered, a.www_women_enrollment,
+                   a.www_enabled_women, a.www_enrollments,
+                   a.gbv_reached, a.gbv_remarks,
+                   a.leader_community_actions, a.leader_vaccinations, a.leader_www_forms,
+                   a.leader_unpaid_care_boys, a.leader_phase_training, a.leader_refresher_training,
+                   a.synergy_meetings, a.synergy_participants,
+                   a.leader_monthly_meetings, a.leader_monthly_participants,
+                   a.alumni_meet_participants,
+                   a.baseline_count, a.midline_y1, a.midline_y2, a.endline_count,
                    (SELECT COUNT(*) FROM mgj_monthly_campaigns c WHERE c.entry_id = a.id) as campaigns,
-                   a.status
+                   (SELECT COALESCE(SUM(c.participants), 0) FROM mgj_monthly_campaigns c WHERE c.entry_id = a.id) as campaign_participants,
+                   a.status, a.created_at
             FROM mgj_monthly_activities a
             LEFT JOIN mgj_centres        nc ON a.centre_code = nc.centre_code AND nc.deleted_at IS NULL
+            LEFT JOIN mgj_states         st ON nc.state_code = st.state_code  AND st.deleted_at IS NULL
             LEFT JOIN mgj_master_batches b  ON a.batch_id    = b.id            AND b.deleted_at  IS NULL
             WHERE {where} ORDER BY a.month DESC, a.centre_code
         """, params)
         rows = cur.fetchall()
 
+    def _g(r, k):
+        v = r.get(k)
+        return '' if v is None else v
+
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        'Month', 'Centre', 'Batch',
+        'Month', 'Month (YYYY-MM)', 'State', 'Centre', 'Batch',
+        # Pakhwada
         'Pakhwada Planned', 'Pakhwada Conducted', 'Pakhwada Participants',
+        'Pakhwada Direct', 'Pakhwada One-to-One',
+        # Sports
         'Sports Sessions', 'Sports Participants',
+        # Household / Parent meetings
         'HH Visits', 'Parent Mtg Total', 'Parent Mtg Male', 'Parent Mtg Female',
-        'Assignments Done', 'WWW Enrollment (Women)', 'GBV Reached',
-        'Leader Comm. Actions', 'Phase Training', 'Refresher Training',
-        '# Campaigns', 'Status',
+        'Male-Only Meetings',
+        # Assignments
+        'Assignments Done', 'Assignment Groups',
+        # Outreach
+        'Canopy Activities', 'Mike Prachar',
+        # WWW
+        'WWW Women Interested', 'WWW Women Registered', 'WWW Women Enrollment',
+        'WWW Enabled Women', 'WWW Enrollments',
+        # GBV
+        'GBV Reached', 'GBV Remarks',
+        # Leader activities
+        'Leader Comm. Actions', 'Leader Vaccinations', 'Leader WWW Forms',
+        'Leader Unpaid-Care (Boys)', 'Leader Phase Training', 'Leader Refresher Training',
+        # Synergy / meetings
+        'Synergy Meetings', 'Synergy Participants',
+        'Leader Monthly Meetings', 'Leader Monthly Participants',
+        'Alumni Meet Participants',
+        # Assessments
+        'Baseline Count', 'Midline Y1', 'Midline Y2', 'Endline Count',
+        # Campaigns + meta
+        '# Campaigns', 'Campaign Participants',
+        'Status', 'Created On',
     ])
     for r in rows:
         writer.writerow([
-            r['month_label'], r['centre_name'], r['batch_name'],
-            r['pakhwada_planned'], r['pakhwada_conducted'], r['pakhwada_participants'],
-            r['sports_sessions'], r['sports_participants'],
-            r['hh_visits'], r['parent_meeting_total'], r['parent_meeting_male'], r['parent_meeting_female'],
-            r['assignments_completed'], r['www_women_enrollment'], r['gbv_reached'],
-            r['leader_community_actions'], r['leader_phase_training'], r['leader_refresher_training'],
-            r['campaigns'], r['status'] or '',
+            _g(r, 'month_label'), _g(r, 'month_ym'), _g(r, 'state_name'),
+            _g(r, 'centre_name'), _g(r, 'batch_name'),
+            _g(r, 'pakhwada_planned'), _g(r, 'pakhwada_conducted'), _g(r, 'pakhwada_participants'),
+            _g(r, 'pakhwada_direct'), _g(r, 'pakhwada_one_to_one'),
+            _g(r, 'sports_sessions'), _g(r, 'sports_participants'),
+            _g(r, 'hh_visits'), _g(r, 'parent_meeting_total'), _g(r, 'parent_meeting_male'),
+            _g(r, 'parent_meeting_female'), _g(r, 'male_only_meetings'),
+            _g(r, 'assignments_completed'), _g(r, 'assignment_groups'),
+            _g(r, 'canopy_activities'), _g(r, 'mike_prachar'),
+            _g(r, 'www_women_interested'), _g(r, 'www_women_registered'), _g(r, 'www_women_enrollment'),
+            _g(r, 'www_enabled_women'), _g(r, 'www_enrollments'),
+            _g(r, 'gbv_reached'), _g(r, 'gbv_remarks'),
+            _g(r, 'leader_community_actions'), _g(r, 'leader_vaccinations'), _g(r, 'leader_www_forms'),
+            _g(r, 'leader_unpaid_care_boys'), _g(r, 'leader_phase_training'), _g(r, 'leader_refresher_training'),
+            _g(r, 'synergy_meetings'), _g(r, 'synergy_participants'),
+            _g(r, 'leader_monthly_meetings'), _g(r, 'leader_monthly_participants'),
+            _g(r, 'alumni_meet_participants'),
+            _g(r, 'baseline_count'), _g(r, 'midline_y1'), _g(r, 'midline_y2'), _g(r, 'endline_count'),
+            _g(r, 'campaigns'), _g(r, 'campaign_participants'),
+            _g(r, 'status') or '', str(r.get('created_at') or '')[:10],
         ])
 
     from export_helper import csv_string_to_xlsx_response
